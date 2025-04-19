@@ -1,17 +1,14 @@
 import re
 
-# Token types
 KEYWORDS = ["if", "else", "void", "int", "while", "break", "return"]
 SYMBOLS = [';', ':', ',', '[', ']', '(', ')', '{', '}', '+', '-', '*', '/', '=', '<']
 DOUBLE_SYMBOLS = ['==']
 WHITESPACES = {' ', '\n', '\r', '\t', '\v', '\f'}
 
-# Initialize symbol table with keywords
 symbol_table = KEYWORDS.copy()
 tokens_by_line = {}
 lexical_errors = []
 
-# Read input
 with open("input.txt", "r") as f:
     input_lines = f.readlines()
 
@@ -33,8 +30,13 @@ def save_files():
 
     with open("lexical_errors.txt", "w") as err:
         if lexical_errors:
-            for line, lex in lexical_errors:
-                err.write(f"{line}.\t({lex}, Invalid input)\n")
+            for entry in lexical_errors:
+                if isinstance(entry, tuple):
+                    err.write(f"{entry[0]}.\t({entry[1]}, {entry[2]})\n")
+                else:
+                    # Unclosed comment
+                    truncated = entry[:7] + "..." if len(entry) > 7 else entry
+                    err.write(f"{line_number}.\t({truncated}, Unclosed comment)\n")
         else:
             err.write("There is no lexical error.\n")
 
@@ -50,12 +52,23 @@ def get_next_token(line, index):
 
     if ch == '/':
         if index + 1 < len(line) and line[index + 1] == '*':
+            end_line = line_number
             end_index = line.find('*/', index + 2)
             if end_index != -1:
                 return ('COMMENT', line[index:end_index + 2]), end_index + 2
             else:
-                lexical_errors.append((line_number, line[index:].strip()))
+                # Unclosed comment
+                lexical_errors.append(line[index:].strip())
                 return None, len(line)
+        elif index + 1 < len(line) and line[index + 1] == '/':
+            return ('COMMENT', line[index:]), len(line)
+        elif index + 1 < len(line) and line[index + 1] != '*':
+            return ('SYMBOL', '/'), index + 1
+        elif index + 1 == len(line):
+            return ('SYMBOL', '/'), index + 1
+        else:
+            lexical_errors.append((line_number, '*/', 'Unmatched comment'))
+            return None, index + 2
 
     # Double-character symbol
     if line[index:index + 2] in DOUBLE_SYMBOLS:
@@ -68,6 +81,13 @@ def get_next_token(line, index):
         match = re.match(r'[0-9]+', line[index:])
         if match:
             value = match.group(0)
+            next_char = index + len(value)
+            if next_char < len(line) and line[next_char].isalpha():
+                # Invalid number like 123d
+                match_full = re.match(r'[0-9]+[A-Za-z0-9]*', line[index:])
+                invalid = match_full.group(0)
+                lexical_errors.append((line_number, invalid, 'Invalid number'))
+                return None, index + len(invalid)
             return ('NUM', value), index + len(value)
 
     if ch.isalpha():
@@ -81,17 +101,14 @@ def get_next_token(line, index):
                 add_symbol_table(value)
                 return ('ID', value), index + len(value)
 
-    # Panic mode: skip until a known token
-    start = index
-    while index < len(line) and line[index] not in WHITESPACES and \
-            not re.match(r'[A-Za-z0-9]', line[index]) and line[index:index + 2] not in DOUBLE_SYMBOLS and \
-            line[index] not in SYMBOLS:
-        index += 1
+    # Unmatched comment end
+    if ch == '*' and index + 1 < len(line) and line[index + 1] == '/':
+        lexical_errors.append((line_number, '*/', 'Unmatched comment'))
+        return None, index + 2
 
-    if index == start:
-        index += 1
-    lexical_errors.append((line_number, line[start:index].strip()))
-    return None, index
+    # Panic mode for invalid single characters
+    lexical_errors.append((line_number, ch, 'Invalid input'))
+    return None, index + 1
 
 while line_index < len(input_lines):
     line = input_lines[line_index]
@@ -100,7 +117,7 @@ while line_index < len(input_lines):
 
     while index < len(line):
         token_result, new_index = get_next_token(line, index)
-        if token_result and token_result[0] != 'WHITESPACE' and token_result[0] != 'COMMENT':
+        if token_result and token_result[0] not in ['WHITESPACE', 'COMMENT']:
             tokens_this_line.append(token_result)
         index = new_index
 
