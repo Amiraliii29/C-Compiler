@@ -115,10 +115,12 @@ def main():
             i = new_index
         if line_tokens:
             tokens.append(f"{line_number}.\t" + ' '.join(f"({t[0]}, {t[1]})" for t in line_tokens))
-
     # Handle unclosed comment at EOF
     if inside_comment:
-        lexical_errors.append((comment_start_line, 'Unclosed comment', 'Unclosed comment'))
+        comment_content = lines[comment_start_line - 1].split('/*', 1)[1]
+        short_preview = comment_content[:5] + '...'
+        lexical_errors.append((comment_start_line, f'/*{short_preview}', 'Unclosed comment'))
+
 
     with open('token.txt', 'w') as f:
         for line in tokens:
