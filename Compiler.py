@@ -64,9 +64,10 @@ def get_next_token(line, index, line_number):
     if ch in SYMBOLS:
         if index + 1 < len(line):
             next_ch = line[index + 1]
-            if not is_whitespace(next_ch) and next_ch not in SYMBOLS and not is_letter(next_ch) and not is_digit(next_ch) and next_ch != '=':
-                lexical_errors.append((line_number, ch + next_ch, 'Invalid input'))
-                return None, index + 2
+            if ch == "*" or ch == "/":
+                if not is_whitespace(next_ch) and next_ch not in SYMBOLS and not is_letter(next_ch) and not is_digit(next_ch) and next_ch != '=':
+                    lexical_errors.append((line_number, ch + next_ch, 'Invalid input'))
+                    return None, index + 2
         return ('SYMBOL', ch), index + 1
 
     if is_digit(ch):
@@ -85,8 +86,7 @@ def get_next_token(line, index, line_number):
             index += 1
         if index < len(line) and not is_whitespace(line[index]) and line[index] not in SYMBOLS + ['=']:
             invalid_start = start
-            while index < len(line) and not is_whitespace(line[index]) and line[index] not in SYMBOLS + ['=']:
-                index += 1
+            index += 1
             lexical_errors.append((line_number, line[invalid_start:index], 'Invalid input'))
             return None, index
         word = line[start:index]
