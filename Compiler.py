@@ -59,6 +59,9 @@ def get_next_token(line, index, line_number):
     if ch == '=':
         if index + 1 < len(line) and line[index + 1] == '=':
             return ('SYMBOL', '=='), index + 2
+        elif index + 1 < len(line) and (not is_alnum(line[index + 1]) and not is_whitespace(line[index + 1])):
+             lexical_errors.append((line_number, ch + line[index + 1], 'Invalid input'))
+             return None , index + 2
         return ('SYMBOL', '='), index + 1
 
     if ch in SYMBOLS:
@@ -74,7 +77,7 @@ def get_next_token(line, index, line_number):
         start = index
         while index < len(line) and is_digit(line[index]):
             index += 1
-        if index < len(line) and is_letter(line[index]):
+        if index < len(line) and (is_letter(line[index]) or (not is_whitespace(line[index]) and line[index] not in SYMBOLS + ["="] )):
             index += 1
             lexical_errors.append((line_number, line[start:index], 'Invalid number'))
             return None, index
