@@ -1,11 +1,11 @@
-1.	if
+1.	f
 2.	else
-3.	void
+3.	if
 4.	int
-5.	while
+5.	void
 6.	break
 7.	return
-8.	f
-9.	a
+8.	a
+9.	b
 10.	main
-11.	b
+11.	while

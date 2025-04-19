@@ -44,7 +44,6 @@ def get_next_token(line, index, line_number):
     if ch == '*' and index + 1 < len(line) and line[index + 1] == '/':
         lexical_errors.append((line_number, '*/', 'Unmatched comment'))
         return None, index + 2
-
     # SYMBOLS including ==
     if ch == '=':
         if index + 1 < len(line) and line[index + 1] == '=':
@@ -52,7 +51,14 @@ def get_next_token(line, index, line_number):
         return ('SYMBOL', '='), index + 1
 
     if ch in SYMBOLS:
+        if index + 1 < len(line):
+            next_ch = line[index + 1]
+            if not is_whitespace(next_ch) and next_ch not in SYMBOLS and not is_letter(next_ch) and not is_digit(next_ch) and next_ch != '=':
+                # e.g. *# or +$
+                lexical_errors.append((line_number, ch + next_ch, 'Invalid input'))
+                return None, index + 2
         return ('SYMBOL', ch), index + 1
+
     
     # NUM (and invalid numbers like 2x or 2abc)
     if is_digit(ch):
