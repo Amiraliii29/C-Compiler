@@ -45,7 +45,7 @@ def get_next_token(line, index, line_number):
         return None, index + 1
 
     # COMMENT START
-    if not inside_comment and ch == '/' and index + 1 < len(line) and line[index + 1] == '*':
+    if ch == '/' and index + 1 < len(line) and line[index + 1] == '*':
         inside_comment = True
         comment_start_line = line_number
         return None, index + 2
