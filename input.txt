@@ -1,21 +1,22 @@
-int f(int a){
-return a *# a * a;
-}
-void main(void){
-int a;
-int b;
-a = 8/;
-if (b < 5) {
-a = f(a);
-}
-else{
-a = 4;
+int f(int a) {
+    void g(int b) {
+        output(b);
+        ff(b - 1gh);
+    }
+    if (a == 1) {
+        out$put£(a);
+        return 0;
+    } else {
+        g(a);
+    }
+
+
+
 }
 
-while (a < 10){
-a = a + 1;
-b = a +b;
-}
 
-break;
+void main(void) {
+int a = 9;
+    f(a);
+	f(aA$%);/*a$$a&&a##*/;;;;
 }
