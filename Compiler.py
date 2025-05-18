@@ -12,6 +12,7 @@ class Scanner:
         self.comment_start_line = None
         self.current_line = ''
         self.errors = []
+        self.symbol_table.extends(self.KEYWORDS)
 
     def is_letter(self, ch): return ch.isalpha()
     def is_digit(self, ch): return ch.isdigit()
@@ -63,20 +64,35 @@ class Scanner:
                 if self.index + 1 < len(line) and line[self.index + 1] == '=':
                     self.index += 2
                     return ('SYMBOL', '==')
+                elif self.index + 1 < len(line) and (not self.is_alnum(line[self.index + 1]) and not self.is_whitespace(line[self.index + 1])):
+                    self.errors.append((self.line_number, ch + line[self.index + 1], 'Invalid input'))
+                    self.index += 2
+                    continue
                 else:
                     self.index += 1
                     return ('SYMBOL', '=')
 
             # Single-character symbols
             if ch in self.SYMBOLS:
-                self.index += 1
-                return ('SYMBOL', ch)
+                if self.index + 1 < len(line):
+                    next_ch = line[self.index + 1]
+                    if ch == "*" or ch == "/":
+                        if not self.is_whitespace(next_ch) and next_ch not in self.SYMBOLS and not self.is_letter(next_ch) and not self.is_digit(next_ch) and next_ch != '=':
+                            self.errors.append((self.line_number, ch + next_ch, 'Invalid input'))
+                            return None, self.index + 2
+                self.index += 1        
+                return ('SYMBOL', ch) 
+
 
             # Numbers
             if self.is_digit(ch):
                 start = self.index
                 while self.index < len(line) and self.is_digit(line[self.index]):
                     self.index += 1
+                if self.index < len(line) and (self.is_letter(line[self.index]) or (not self.is_whitespace(line[self.index]) and line[self.index] not in self.SYMBOLS + ["="] )):
+                    self.index += 1
+                    self.errors.append((self.line_number, line[start:self.index], 'Invalid number'))
+                    continue
                 return ('NUM', line[start:self.index])
 
             # Identifiers and keywords
@@ -84,11 +100,16 @@ class Scanner:
                 start = self.index
                 while self.index < len(line) and self.is_alnum(line[self.index]):
                     self.index += 1
+                if self.index < len(line) and not self.is_whitespace(line[self.index]) and line[self.index] not in self.SYMBOLS + ['=']:
+                    invalid_start = start
+                    self.index += 1
+                    self.errors.append((self.line_number, line[invalid_start:self.index], 'Invalid input'))
+                    continue
                 word = line[start:self.index]
                 if word in self.KEYWORDS:
                     return ('KEYWORD', word)
-                else:
-                    return ('ID', word)
+                self.symbol_table.append(word)
+                return ('ID', word)
 
             # Invalid input
             self.errors.append((self.line_number + 1, ch, 'Invalid input'))
