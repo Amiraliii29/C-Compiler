@@ -12,7 +12,8 @@ class Scanner:
         self.comment_start_line = None
         self.current_line = ''
         self.errors = []
-        self.symbol_table.extends(self.KEYWORDS)
+        self.symbol_table = []
+        self.symbol_table.extend(self.KEYWORDS)
 
     def is_letter(self, ch): return ch.isalpha()
     def is_digit(self, ch): return ch.isdigit()
@@ -89,7 +90,7 @@ class Scanner:
                 start = self.index
                 while self.index < len(line) and self.is_digit(line[self.index]):
                     self.index += 1
-                if self.index < len(line) and (self.is_letter(line[self.index]) or (not self.is_whitespace(line[self.index]) and line[self.index] not in self.SYMBOLS + ["="] )):
+                if self.index < len(line) and (self.is_letter(line[self.index]) or (not self.is_whitespace(line[self.index]) and line[self.index] not in self.SYMBOLS + ["="])):
                     self.index += 1
                     self.errors.append((self.line_number, line[start:self.index], 'Invalid number'))
                     continue
@@ -123,35 +124,28 @@ class Parser:
         self.scanner = scanner
         self.current_token = self.scanner.get_next_token()
         self.errors = []
-        self.output = []  # parse tree lines
+        self.output = []
         self.stack = []
         self.indent_level = 0
+        self.transitions = self.build_transition_table()
 
-        # Example grammar rules and productions (You provide full)
-        # format: non_terminal: [list of possible productions]
-        # each production is list of grammar symbols (terminals or non-terminals)
-        self.grammar = {
-            'Program': [['DeclarationList']],
-            'DeclarationList': [['Declaration', 'DeclarationList'], []],  # epsilon
-            'Declaration': [['KEYWORD', 'ID', 'DeclarationPrime']],
-            # Add all 47 rules here
-        }
-
-        # FIRST and FOLLOW sets placeholders (you add real sets)
-        self.FIRST = {
-            'Program': {'int', 'void'},
-            'DeclarationList': {'int', 'void', ''},  # epsilon represented by empty string
-            'Declaration': {'int', 'void'},
-            'DeclarationPrime': {';', '(', '[', '{'},
-            # ...
-        }
-
-        self.FOLLOW = {
-            'Program': {'$'},
-            'DeclarationList': {'$'},
-            'Declaration': {'int', 'void', '$'},
-            'DeclarationPrime': {'int', 'void', '$'},
-            # ...
+    def build_transition_table(self):
+        # Sample for illustration: complete based on transition diagrams.
+        return {
+            'Program': {
+                'int': ['DeclarationList'],
+                'void': ['DeclarationList']
+            },
+            'DeclarationList': {
+                'int': ['Declaration', 'DeclarationList'],
+                'void': ['Declaration', 'DeclarationList'],
+                '$': []
+            },
+            'Declaration': {
+                'int': ['KEYWORD', 'ID', 'DeclarationPrime'],
+                'void': ['KEYWORD', 'ID', 'DeclarationPrime']
+            },
+            # Add all rules using transition table logic
         }
 
     def write_node(self, node):
@@ -161,68 +155,40 @@ class Parser:
         self.current_token = self.scanner.get_next_token()
 
     def panic_recovery(self, non_terminal):
-        # Skip tokens until token in FOLLOW(non_terminal) or EOF ($)
-        follow_set = self.FOLLOW.get(non_terminal, set())
-        while self.current_token[1] not in follow_set and self.current_token[0] != '$':
+        while self.current_token[1] not in self.transitions.get(non_terminal, {}) and self.current_token[0] != '$':
             self.errors.append(f"#{self.scanner.line_number+1} : syntax error, unexpected token {self.current_token[1]} in {non_terminal}, skipping")
             self.advance()
 
     def parse(self):
         self.stack = ['Program']
-        self.indent_level = 0
         self.write_node('Program')
         self.indent_level += 1
 
         while self.stack:
             top = self.stack.pop()
-            if top in self.grammar:  # non-terminal
-                # Decide which production to use based on FIRST sets and current token
-                # Here we simplify and pick first production whose FIRST set contains current token
-                # You need to replace this logic with your real FIRST set logic and table
-                productions = self.grammar[top]
+            if top in self.transitions:
+                trans = self.transitions[top]
+                next_token_type, next_token_value = self.current_token
+                rule = trans.get(next_token_value, trans.get(next_token_type))
 
-                prod_to_use = None
-                for prod in productions:
-                    # Compute FIRST(prod)
-                    first_sym = prod[0] if prod else ''  # epsilon if empty production
-                    if first_sym == '':
-                        # epsilon production always possible
-                        prod_to_use = prod
-                        break
-                    # If first_sym terminal or non-terminal, check if current token matches
-                    # For simplicity, check if current token matches first_sym (terminal)
-                    if first_sym in [self.current_token[1], self.current_token[0]]:
-                        prod_to_use = prod
-                        break
-                    # Also check if current_token in FIRST(first_sym) if first_sym non-terminal
-                    if first_sym in self.FIRST and self.current_token[1] in self.FIRST[first_sym]:
-                        prod_to_use = prod
-                        break
-                if prod_to_use is None:
-                    # Panic mode error recovery
+                if rule is None:
                     self.errors.append(f"#{self.scanner.line_number+1} : syntax error, unexpected token {self.current_token[1]} when parsing {top}")
                     self.panic_recovery(top)
                     continue
 
-                # Output non-terminal node
                 self.write_node(top)
                 self.indent_level += 1
-
-                # Push production RHS to stack in reverse order
-                for symbol in reversed(prod_to_use):
-                    if symbol != '':
-                        self.stack.append(symbol)
+                for sym in reversed(rule):
+                    self.stack.append(sym)
 
             else:
-                # terminal symbol expected
-                typ, val = self.current_token
-                if top == val or top == typ:
-                    self.write_node(f"({typ}, {val})")
+                token_type, token_val = self.current_token
+                if top == token_val or top == token_type:
+                    self.write_node(f"({token_type}, {token_val})")
                     self.advance()
                 else:
-                    # Terminal mismatch error
                     self.errors.append(f"#{self.scanner.line_number+1} : syntax error, missing {top}")
-                    self.write_node(f"({top})")  # pretend it's there
+                    self.write_node(f"({top})")
 
         self.indent_level -= 1
 
