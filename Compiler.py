@@ -12,7 +12,6 @@ class Scanner:
         self.comment_start_line = None
         self.current_line = ''
         self.errors = []
-        self.symbol_table.extends(self.KEYWORDS)
 
     def is_letter(self, ch): return ch.isalpha()
     def is_digit(self, ch): return ch.isdigit()
@@ -108,7 +107,6 @@ class Scanner:
                 word = line[start:self.index]
                 if word in self.KEYWORDS:
                     return ('KEYWORD', word)
-                self.symbol_table.append(word)
                 return ('ID', word)
 
             # Invalid input
@@ -122,109 +120,426 @@ class Parser:
     def __init__(self, scanner):
         self.scanner = scanner
         self.current_token = self.scanner.get_next_token()
+        print (self.current_token)
         self.errors = []
-        self.output = []  # parse tree lines
-        self.stack = []
-        self.indent_level = 0
+        self.output = []
+        self.path_stack = []
 
-        # Example grammar rules and productions (You provide full)
-        # format: non_terminal: [list of possible productions]
-        # each production is list of grammar symbols (terminals or non-terminals)
-        self.grammar = {
-            'Program': [['DeclarationList']],
-            'DeclarationList': [['Declaration', 'DeclarationList'], []],  # epsilon
-            'Declaration': [['KEYWORD', 'ID', 'DeclarationPrime']],
-            # Add all 47 rules here
-        }
-
-        # FIRST and FOLLOW sets placeholders (you add real sets)
-        self.FIRST = {
-            'Program': {'int', 'void'},
-            'DeclarationList': {'int', 'void', ''},  # epsilon represented by empty string
-            'Declaration': {'int', 'void'},
-            'DeclarationPrime': {';', '(', '[', '{'},
-            # ...
-        }
-
-        self.FOLLOW = {
-            'Program': {'$'},
-            'DeclarationList': {'$'},
-            'Declaration': {'int', 'void', '$'},
-            'DeclarationPrime': {'int', 'void', '$'},
-            # ...
-        }
-
-    def write_node(self, node):
-        self.output.append('\t' * self.indent_level + node)
 
     def advance(self):
         self.current_token = self.scanner.get_next_token()
 
-    def panic_recovery(self, non_terminal):
-        # Skip tokens until token in FOLLOW(non_terminal) or EOF ($)
-        follow_set = self.FOLLOW.get(non_terminal, set())
-        while self.current_token[1] not in follow_set and self.current_token[0] != '$':
-            self.errors.append(f"#{self.scanner.line_number+1} : syntax error, unexpected token {self.current_token[1]} in {non_terminal}, skipping")
+
+    def write_node(self, depth, node, last):
+        line = ""
+        for i in range(depth - 1):
+            line += "│   "
+        if depth > 0:
+            line += "└── " if last else "├── "
+        line += node
+        self.output.append(line)
+
+    def match(self, expected_value, depth, last=True):
+        if self.current_token[1] == expected_value:
+            self.write_node(depth, f"({self.current_token[0]}, {self.current_token[1]})", last)
             self.advance()
+        elif expected_value == 'ID' and self.current_token[0] == expected_value:
+            self.write_node(depth, f"({self.current_token[0]}, {self.current_token[1]})", last)
+            self.advance()
+        elif expected_value == 'NUM' and self.current_token[0] == expected_value:
+            self.write_node(depth, f"({self.current_token[0]}, {self.current_token[1]})", last)
+            self.advance()
+        else:
+            self.syntax_error(depth, f"Expected '{expected_value}'", last)
+
+    def syntax_error(self, depth, message, last=True):
+        self.errors.append(f"#{self.scanner.line_number + 1} : syntax error, {message}")
+        self.write_node(depth, "(error)", last)
+
+    def Program(self, depth, last=True):
+        self.write_node(depth, 'Program', False)
+        self.DeclarationList(depth + 1, False)
+
+    def DeclarationList(self, depth, last=True):
+        self.write_node(depth, 'DeclarationList', last)
+        if self.current_token[1] in ['int', 'void']:
+            self.Declaration(depth + 1, last=False)
+            self.DeclarationList(depth + 1, last=True)
+        else:
+            self.write_node(depth + 1, 'epsilon', last=True)
+
+    def Declaration(self, depth, last=True):
+        self.write_node(depth, 'Declaration', last)
+        self.DeclarationInitial(depth + 1, last=False)
+        self.DeclarationPrime(depth + 1, last=True)
+
+    def DeclarationInitial(self, depth, last=True):
+        self.write_node(depth, 'DeclarationInitial', last)
+        self.TypeSpecifier(depth + 1, last=False)
+        self.match('ID', depth + 1, last=True)
+
+    def DeclarationPrime(self, depth, last=True):
+        self.write_node(depth, 'DeclarationPrime', last)
+        if self.current_token[1] == '(':
+            self.FunDeclarationPrime(depth + 1, last=True)
+        elif self.current_token[1] in [';', '[']:
+            self.VarDeclarationPrime(depth + 1, last=True)
+        else:
+            self.syntax_error(depth + 1, 'Expected ( or ; or [', last=True)
+
+    def VarDeclarationPrime(self, depth, last=True):
+        self.write_node(depth, 'VarDeclarationPrime', last)
+        if self.current_token[1] == ';':
+            self.match(';', depth + 1, last=True)
+        elif self.current_token[1] == '[':
+            self.match('[', depth + 1, last=False)
+            self.match('NUM', depth + 1, last=False)
+            self.match(']', depth + 1, last=False)
+            self.match(';', depth + 1, last=True)
+        else:
+            self.syntax_error(depth + 1, 'Expected ; or [', last=True)
+
+    def FunDeclarationPrime(self, depth, last=True):
+        self.write_node(depth, 'FunDeclarationPrime', last)
+        self.match('(', depth + 1, last=False)
+        self.Params(depth + 1, last=False)
+        self.match(')', depth + 1, last=False)
+        self.CompoundStmt(depth + 1, last=True)
+
+    def TypeSpecifier(self, depth, last=True):
+        self.write_node(depth, 'TypeSpecifier', last)
+        if self.current_token[1] in ['int', 'void']:
+            self.match(self.current_token[1], depth + 1, last=True)
+        else:
+            self.syntax_error(depth + 1, 'Expected int or void', last=True)
+
+    def Params(self, depth, last=True):
+        self.write_node(depth, 'Params', last)
+        if self.current_token[1] == 'int':
+            self.match('int', depth + 1, last=False)
+            self.match('ID', depth + 1, last=False)
+            self.ParamPrime(depth + 1, last=False)
+            self.ParamList(depth + 1, last=True)
+        elif self.current_token[1] == 'void':
+            self.match('void', depth + 1, last=True)
+        else:
+            self.syntax_error(depth + 1, 'Expected int or void', last=True)
+
+    def ParamPrime(self, depth, last=True):
+        self.write_node(depth, 'ParamPrime', last)
+        if self.current_token[1] == '[':
+            self.match('[', depth + 1, last=False)
+            self.match(']', depth + 1, last=True)
+        else:
+            self.write_node(depth + 1, 'epsilon', last=True)
+
+    def ParamList(self, depth, last=True):
+        self.write_node(depth, 'ParamList', last)
+        if self.current_token[1] == ',':
+            self.match(',', depth + 1, last=False)
+            self.Param(depth + 1, last=False)
+            self.ParamList(depth + 1, last=True)
+        else:
+            self.write_node(depth + 1, 'epsilon', last=True)
+
+    def Param(self, depth, last=True):
+        self.write_node(depth, 'Param', last)
+        self.DeclarationInitial(depth + 1, last=False)
+        self.ParamPrime(depth + 1, last=True)
+
+    def CompoundStmt(self, depth, last=True):
+        self.write_node(depth, 'CompoundStmt', last)
+        self.match('{', depth + 1, last=False)
+        self.DeclarationList(depth + 1, last=False)
+        self.StatementList(depth + 1, last=False)
+        self.match('}', depth + 1, last=True)
+
+    def StatementList(self, depth, last=True):
+        self.write_node(depth, 'StatementList', last)
+        if self.current_token[0] in {'NUM', 'ID'} or self.current_token[1] in ['if', 'while', 'return', 'break', '(', '{', ';']:
+            self.Statement(depth + 1, last=False)
+            self.StatementList(depth + 1, last=True)
+        else:
+            self.write_node(depth + 1, 'epsilon', last=True)
+
+    def Statement(self, depth, last=True):
+        self.write_node(depth, 'Statement', last)
+        if self.current_token[1] == '{':
+            self.CompoundStmt(depth + 1, last=True)
+        elif self.current_token[1] == 'if':
+            self.SelectionStmt(depth + 1, last=True)
+        elif self.current_token[1] == 'while':
+            self.IterationStmt(depth + 1, last=True)
+        elif self.current_token[1] == 'return':
+            self.ReturnStmt(depth + 1, last=True)
+        else:
+            self.ExpressionStmt(depth + 1, last=True)
+
+    def ExpressionStmt(self, depth, last=True):
+        self.write_node(depth, 'ExpressionStmt', last)
+        if self.current_token[1] == ';':
+            self.match(';', depth + 1, last=True)
+        elif self.current_token[1] == 'break':
+            self.match('break', depth + 1, last=False)
+            self.match(';', depth + 1, last=True)
+        else:
+            self.Expression(depth + 1, last=False)
+            self.match(';', depth + 1, last=True)
+
+    def SelectionStmt(self, depth, last=True):
+        self.write_node(depth, 'SelectionStmt', last)
+        self.match('if', depth + 1, last=False)
+        self.match('(', depth + 1, last=False)
+        self.Expression(depth + 1, last=False)
+        self.match(')', depth + 1, last=False)
+        self.Statement(depth + 1, last=False)
+        self.match('else', depth + 1, last=False)
+        self.Statement(depth + 1, last=True)
+
+    def IterationStmt(self, depth, last=True):
+        self.write_node(depth, 'IterationStmt', last)
+        self.match('while', depth + 1, last=False)
+        self.match('(', depth + 1, last=False)
+        self.Expression(depth + 1, last=False)
+        self.match(')', depth + 1, last=False)
+        self.Statement(depth + 1, last=True)
+
+    def ReturnStmt(self, depth, last=True):
+        self.write_node(depth, 'ReturnStmt', last)
+        self.match('return', depth + 1, last=False)
+        self.ReturnStmtPrime(depth + 1, last=True)
+
+    def ReturnStmtPrime(self, depth, last=True):
+        self.write_node(depth, 'ReturnStmtPrime', last)
+        if self.current_token[1] == ';':
+            self.match(';', depth + 1, last=True)
+        else:
+            self.Expression(depth + 1, last=False)
+            self.match(';', depth + 1, last=True)
+
+    def Expression(self, depth, last=True):
+        self.write_node(depth, 'Expression', last)
+        if self.current_token[0] == 'ID':
+            self.match('ID', depth + 1, last=False)
+            self.B(depth + 1, last=True)
+        else:
+            self.SimpleExpressionZegond(depth + 1, last=True)
+
+    def B(self, depth, last=True):
+        self.write_node(depth, 'B', last)
+        if self.current_token[1] == '=':
+            self.match('=', depth + 1, last=False)
+            self.Expression(depth + 1, last=True)
+        elif self.current_token[1] == '[':
+            self.match('[', depth + 1, last=False)
+            self.Expression(depth + 1, last=False)
+            self.match(']', depth + 1, last=False)
+            self.H(depth + 1, last=True)
+        else:
+            self.SimpleExpressionPrime(depth + 1, last=True)
+
+    def H(self, depth, last=True):
+        self.write_node(depth, 'H', last)
+        if self.current_token[1] == '=':
+            self.match('=', depth + 1, last=False)
+            self.Expression(depth + 1, last=True)
+        else:
+            self.G(depth + 1, last=False)
+            self.D(depth + 1, last=False)
+            self.C(depth + 1, last=True)
+
+    def SimpleExpressionZegond(self, depth, last=True):
+        self.write_node(depth, 'SimpleExpressionZegond', last)
+        self.AdditiveExpressionZegond(depth + 1, last=False)
+        self.C(depth + 1, last=True)
+
+    def SimpleExpressionPrime(self, depth, last=True):
+        self.write_node(depth, 'SimpleExpressionPrime', last)
+        self.AdditiveExpressionPrime(depth + 1, last=False)
+        self.C(depth + 1, last=True)
+
+    def C(self, depth, last=True):
+        self.write_node(depth, 'C', last)
+        if self.current_token[1] in ['<', '==']:
+            self.Relop(depth + 1, last=False)
+            self.AdditiveExpression(depth + 1, last=True)
+        else:
+            self.write_node(depth + 1, 'epsilon', last=True)
+
+    def Relop(self, depth, last=True):
+        self.write_node(depth, 'Relop', last)
+        if self.current_token[1] in ['<', '==']:
+            self.match(self.current_token[1], depth + 1, last=True)
+        else:
+            self.syntax_error(depth + 1, 'Expected relational operator', last=True)
+
+    def AdditiveExpression(self, depth, last=True):
+        self.write_node(depth, 'AdditiveExpression', last)
+        self.Term(depth + 1, last=False)
+        self.D(depth + 1, last=True)
+
+    def AdditiveExpressionPrime(self, depth, last=True):
+        self.write_node(depth, 'AdditiveExpressionPrime', last)
+        self.TermPrime(depth + 1, last=False)
+        self.D(depth + 1, last=True)
+
+    def AdditiveExpressionZegond(self, depth, last=True):
+        self.write_node(depth, 'AdditiveExpressionZegond', last)
+        self.TermZegond(depth + 1, last=False)
+        self.D(depth + 1, last=True)
+
+    def D(self, depth, last=True):
+        self.write_node(depth, 'D', last)
+        if self.current_token[1] in ['+', '-']:
+            self.Addop(depth + 1, last=False)
+            self.Term(depth + 1, last=False)
+            self.D(depth + 1, last=True)
+        else:
+            self.write_node(depth + 1, 'epsilon', last=True)
+
+    def Addop(self, depth, last=True):
+        self.write_node(depth, 'Addop', last)
+        if self.current_token[1] in ['+', '-']:
+            self.match(self.current_token[1], depth + 1, last=True)
+        else:
+            self.syntax_error(depth + 1, 'Expected + or -', last=True)
+
+    def Term(self, depth, last=True):
+        self.write_node(depth, 'Term', last)
+        self.SignedFactor(depth + 1, last=False)
+        self.G(depth + 1, last=True)
+
+    def TermPrime(self, depth, last=True):
+        self.write_node(depth, 'TermPrime', last)
+        self.SignedFactorPrime(depth + 1, last=False)
+        self.G(depth + 1, last=True)
+
+    def TermZegond(self, depth, last=True):
+        self.write_node(depth, 'TermZegond', last)
+        self.SignedFactorZegond(depth + 1, last=False)
+        self.G(depth + 1, last=True)
+
+    def G(self, depth, last=True):
+        self.write_node(depth, 'G', last)
+        if self.current_token[1] == '*':
+            self.match('*', depth + 1, last=False)
+            self.SignedFactor(depth + 1, last=False)
+            self.G(depth + 1, last=True)
+        else:
+            self.write_node(depth + 1, 'epsilon', last=True)
+
+    def SignedFactor(self, depth, last=True):
+        self.write_node(depth, 'SignedFactor', last)
+        if self.current_token[1] in ['+', '-']:
+            self.match(self.current_token[1], depth + 1, last=False)
+            self.Factor(depth + 1, last=True)
+        else:
+            self.Factor(depth + 1, last=True)
+
+    def SignedFactorPrime(self, depth, last=True):
+        self.write_node(depth, 'SignedFactorPrime', last)
+        self.FactorPrime(depth + 1, last=True)
+
+    def SignedFactorZegond(self, depth, last=True):
+        self.write_node(depth, 'SignedFactorZegond', last)
+        if self.current_token[1] in ['+', '-']:
+            self.match(self.current_token[1], depth + 1, last=False)
+            self.Factor(depth + 1, last=True)
+        else:
+            self.FactorZegond(depth + 1, last=True)
+
+    def Factor(self, depth, last=True):
+        self.write_node(depth, 'Factor', last)
+        if self.current_token[1] == '(':
+            self.match('(', depth + 1, last=False)
+            self.Expression(depth + 1, last=False)
+            self.match(')', depth + 1, last=True)
+        elif self.current_token[0] == 'ID':
+            self.match('ID', depth + 1, last=False)
+            self.VarCallPrime(depth + 1, last=True)
+        elif self.current_token[0] == 'NUM':
+            self.match('NUM', depth + 1, last=True)
+        else:
+            self.syntax_error(depth + 1, 'Invalid factor', last=True)
+
+
+    def VarCallPrime(self, depth , last=True):
+        self.write_node(depth, 'VarCallPrime' , last)
+        if self.current_token[1] == '(':
+            self.match('(', depth + 1 , last=False)
+            self.Args(depth + 1)
+            self.match(')', depth + 1 , last=True)
+        else:
+            self.VarPrime(depth + 1 , last=True)
+
+    def VarPrime(self, depth , last=True):
+        self.write_node(depth, 'VarPrime' , last)
+        if self.current_token[1] == '[':
+            self.match('[', depth + 1 , last=False)
+            self.Expression(depth + 1 , last=False)
+            self.match(']', depth + 1 , last=True)
+        else:
+            self.write_node(depth + 1, 'EPSILON' , last=True)
+
+    def FactorPrime(self, depth , last=True):
+        self.write_node(depth, 'FactorPrime' , last)
+        if self.current_token[1] == '(':
+            self.match('(', depth + 1 , last=False)
+            self.Args(depth + 1 , last=False)
+            self.match(')', depth + 1 , last=True)
+        else:
+            self.write_node(depth + 1, 'EPSILON' , last=True)
+
+    def FactorZegond(self, depth , last=True):
+        self.write_node(depth, 'FactorZegond' , last)
+        if self.current_token[1] == '(':
+            self.match('(', depth + 1 , last=False)
+            self.Expression(depth + 1 , last=False)
+            self.match(')', depth + 1 , last=True)
+        elif self.current_token[0] == 'NUM':
+            self.match('NUM', depth + 1 , last=True)
+        else:
+            self.syntax_error(depth + 1, 'Invalid factor (Zegond)' , last=True)
+
+    def Args(self, depth , last=True):
+        self.write_node(depth, 'Args' , last)
+        if self.current_token[0] in ['ID', 'NUM'] or self.current_token[1] in ['(', '+', '-']:
+            self.ArgList(depth + 1 , last = True)
+        else:
+            self.write_node(depth + 1, 'EPSILON' , last=True)
+
+    def ArgList(self, depth , last=True):
+        self.write_node(depth, 'ArgList' , last)
+        self.Expression(depth + 1 , last=False)
+        self.ArgListPrime(depth + 1 , last=True)
+
+    def ArgListPrime(self, depth , last=True):
+        self.write_node(depth, 'ArgListPrime' , last)
+        if self.current_token[1] == ',':
+            self.match(',', depth + 1 , last=False)
+            self.Expression(depth + 1 , last=False)
+            self.ArgListPrime(depth + 1 , last=True)
+        else:
+            self.write_node(depth + 1, 'EPSILON' , last=True)
 
     def parse(self):
-        self.stack = ['Program']
-        self.indent_level = 0
-        self.write_node('Program')
-        self.indent_level += 1
+        self.Program(0 , last=True)
+        self.write_node(1 , '$' , last=True)
 
-        while self.stack:
-            top = self.stack.pop()
-            if top in self.grammar:  # non-terminal
-                # Decide which production to use based on FIRST sets and current token
-                # Here we simplify and pick first production whose FIRST set contains current token
-                # You need to replace this logic with your real FIRST set logic and table
-                productions = self.grammar[top]
+        # Write output to files
+        with open("parse_tree.txt", "w") as f:
+            for line in self.output:
+                f.write(line + "\n")
 
-                prod_to_use = None
-                for prod in productions:
-                    # Compute FIRST(prod)
-                    first_sym = prod[0] if prod else ''  # epsilon if empty production
-                    if first_sym == '':
-                        # epsilon production always possible
-                        prod_to_use = prod
-                        break
-                    # If first_sym terminal or non-terminal, check if current token matches
-                    # For simplicity, check if current token matches first_sym (terminal)
-                    if first_sym in [self.current_token[1], self.current_token[0]]:
-                        prod_to_use = prod
-                        break
-                    # Also check if current_token in FIRST(first_sym) if first_sym non-terminal
-                    if first_sym in self.FIRST and self.current_token[1] in self.FIRST[first_sym]:
-                        prod_to_use = prod
-                        break
-                if prod_to_use is None:
-                    # Panic mode error recovery
-                    self.errors.append(f"#{self.scanner.line_number+1} : syntax error, unexpected token {self.current_token[1]} when parsing {top}")
-                    self.panic_recovery(top)
-                    continue
-
-                # Output non-terminal node
-                self.write_node(top)
-                self.indent_level += 1
-
-                # Push production RHS to stack in reverse order
-                for symbol in reversed(prod_to_use):
-                    if symbol != '':
-                        self.stack.append(symbol)
-
+        with open("syntax_errors.txt", "w") as f:
+            if not self.errors and not self.scanner.errors:
+                f.write("There is no syntax error.\n")
             else:
-                # terminal symbol expected
-                typ, val = self.current_token
-                if top == val or top == typ:
-                    self.write_node(f"({typ}, {val})")
-                    self.advance()
-                else:
-                    # Terminal mismatch error
-                    self.errors.append(f"#{self.scanner.line_number+1} : syntax error, missing {top}")
-                    self.write_node(f"({top})")  # pretend it's there
+                for err in self.scanner.errors:
+                    f.write(f"Scanner error at line {err[0]}: {err[2]} ('{err[1]}')\n")
+                for err in self.errors:
+                    f.write(err + "\n")
 
-        self.indent_level -= 1
 
 def main():
     with open("input.txt", "r") as f:
@@ -234,18 +549,7 @@ def main():
     parser = Parser(scanner)
     parser.parse()
 
-    with open("parse_tree.txt", "w") as f:
-        for line in parser.output:
-            f.write(line + "\n")
 
-    with open("syntax_errors.txt", "w") as f:
-        if not parser.errors and not scanner.errors:
-            f.write("There is no syntax error.\n")
-        else:
-            for err in scanner.errors:
-                f.write(f"Scanner error at line {err[0]}: {err[2]} ('{err[1]}')\n")
-            for err in parser.errors:
-                f.write(err + "\n")
 
 if __name__ == "__main__":
     main()
