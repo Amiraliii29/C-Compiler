@@ -131,13 +131,8 @@ class Parser:
 
 
     def write_node(self, depth, node, last):
-        line = ""
-        for i in range(depth - 1):
-            line += "│   "
-        if depth > 0:
-            line += "└── " if last else "├── "
-        line += node
-        self.output.append(line)
+        self.output.append('\t' * depth + node)
+
 
     def match(self, expected_value, depth, last=True):
         if self.current_token[1] == expected_value:
