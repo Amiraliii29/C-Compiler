@@ -13,6 +13,8 @@ class Scanner:
         self.comment_start_line = None
         self.current_line = ''
         self.errors = []
+        self.saved_type = None
+        self.semantic_stack = []
 
     def is_letter(self, ch): return ch.isalpha()
     def is_digit(self, ch): return ch.isdigit()
@@ -361,16 +363,35 @@ class Parser:
         if is_epsilon_in_predict and is_token_in_sync:
             return True
         return False
+    
+    def code_gen(self, action, lexeme=None):
+        if action == "start_program":
+            # Optional: initialize variables or emit program prologue
+            self.output_lines.append("// Begin program")
+        elif action == "end_program":
+            # Emit any required epilogue or finalize output
+            self.output_lines.append("// End program")
+            # You can dump to file or print IR here if needed
+        elif action == "push_type":
+            self.semantic_stack.append(("type", lexeme))
+        elif action == "push_id":
+            self.semantic_stack.append(("id", lexeme))
+    
+
 
 
     def construct_Program(self, use_empty_production):
         self.log_syntax_node("Program") 
         self.depth += 1
+
+        self.code_gen("start_program")  # Action: initialize program setup (delete)
         self.attempt_parse_rule_with_recovery("DeclarationList", self.construct_DeclarationList)
         
         if self.lookahead_token[0] == '$':
             self.log_syntax_node("$") 
             self.lookahead_token = self.token_provider.get_next_token() 
+
+        self.code_gen("end_program")  # Action: finalize and possibly write output (delete)
         self.depth -= 1
 
     def construct_DeclarationList(self, use_empty_production):
@@ -395,6 +416,10 @@ class Parser:
         self.log_syntax_node("DeclarationInitial") 
         self.depth += 1
         self.attempt_parse_rule_with_recovery("TypeSpecifier", self.construct_TypeSpecifier)
+        # Save ID
+        if self.lookahead_token[0] == "ID":
+            self.code_gen("push_id", self.lookahead_token[1])
+            self.code_gen("push_type", self.saved_type)  # From TypeSpecifier
         self.require_token('ID')
         self.depth -= 1
 
@@ -442,11 +467,14 @@ class Parser:
         self.log_syntax_node("TypeSpecifier") 
         self.depth += 1
         if self.lookahead_token[1] == 'int' and self.lookahead_token[0] == 'KEYWORD':
+            self.saved_type = "int"
             self.require_token('KEYWORD', 'int')
         elif self.lookahead_token[1] == 'void' and self.lookahead_token[0] == 'KEYWORD':
+            self.saved_type = "void"
             self.require_token('KEYWORD', 'void')
         else:
             # Error logged by require_token
+            self.saved_type = "int"
             self.require_token('KEYWORD', 'int') # Default attempt if error
         self.depth -= 1
 
