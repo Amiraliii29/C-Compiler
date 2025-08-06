@@ -371,8 +371,6 @@ class Parser:
         if self.lookahead_token[0] == '$':
             self.log_syntax_node("$") 
             self.lookahead_token = self.token_provider.get_next_token() 
-        # elif not any("Unexpected EOF" in err for err in self.syntax_error_list[-1:]): 
-        #      self.syntax_error_list.append(f"#{self.token_provider.line_number + 1} : syntax error, missing $")
         self.depth -= 1
 
     def construct_DeclarationList(self, use_empty_production):
@@ -917,4 +915,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()          
+    main()
