@@ -48,7 +48,7 @@ class CodeGen:
         self.push(lexeme)
 
     def push_num(self, lexeme):
-        self.push(lexeme)    
+        self.push(f'#{lexeme}')    
 
     def define_variable(self, lookahead=None):
         var_id = self.pop()
