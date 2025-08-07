@@ -497,7 +497,7 @@ class Parser:
             self.require_token('ID')
             # define_variable
             self.code_gen.define_variable(self.lookahead_token)    
-            
+
             self.attempt_parse_rule_with_recovery("ParamPrime", self.construct_ParamPrime)
             self.attempt_parse_rule_with_recovery("ParamList", self.construct_ParamList)
         elif self.lookahead_token[1] == 'void' and self.lookahead_token[0] == 'KEYWORD':
@@ -515,6 +515,9 @@ class Parser:
         else:
             self.require_token('SYMBOL', ',')
             self.attempt_parse_rule_with_recovery("Param", self.construct_Param)
+            # define_variable (after Param)
+            self.code_gen.define_variable(self.lookahead_token)
+            
             self.attempt_parse_rule_with_recovery("ParamList", self.construct_ParamList)
         self.depth -= 1
 
