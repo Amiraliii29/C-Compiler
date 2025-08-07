@@ -517,7 +517,7 @@ class Parser:
             self.attempt_parse_rule_with_recovery("Param", self.construct_Param)
             # define_variable (after Param)
             self.code_gen.define_variable(self.lookahead_token)
-            
+
             self.attempt_parse_rule_with_recovery("ParamList", self.construct_ParamList)
         self.depth -= 1
 
@@ -535,17 +535,25 @@ class Parser:
             self.log_syntax_node("epsilon") 
             self.attempt_empty_production_next = False
         else: 
+            self.code_gen.define_array_argument(self.lookahead_token)
             self.require_token("SYMBOL", "[")
             self.require_token("SYMBOL", "]") 
+            # self.code_gen.define_array_argument(self.lookahead_token)
         self.depth -= 1
 
     def construct_CompoundStmt(self, use_empty_production):
         self.log_syntax_node("CompoundStmt") 
         self.depth += 1
+        # Push a new scope
+        self.code_gen.push_scope(self.lookahead_token)
         self.require_token('SYMBOL', '{')
         self.attempt_parse_rule_with_recovery("DeclarationList", self.construct_DeclarationList)
         self.attempt_parse_rule_with_recovery("StatementList", self.construct_StatementList)
         self.require_token('SYMBOL', '}')
+
+        # Pop the current scope
+        self.code_gen.pop_scope(self.lookahead_token)
+
         self.depth -= 1
 
     def construct_StatementList(self, use_empty_production):

@@ -8,7 +8,7 @@ class CodeGen:
         self.index = 0
 
         self.saved_type = None
-        self.current_scope = 'global'  # Default scope
+        self.current_scope = 0  # Default scope
 
         # Our real symbol table: [(name, type, address, scope)]
         self.symbol_table = []
@@ -141,3 +141,17 @@ class CodeGen:
         if self.semantic_stack[-3] != 'main':
             return_address = self.semantic_stack[-1]
             self.insert_code('JP', f'@{return_address}')
+    
+    def define_array_argument(self, lookahead):
+        temp = self.symbol_table[-1]
+        del self.symbol_table[-1]
+        self.symbol_table.append((temp[0], 'int*', temp[2], temp[3]))
+
+    def push_scope(self, lookahead):
+        self.current_scope += 1
+
+    def pop_scope(self, lookahead):
+        for record in self.symbol_table[::-1]:
+            if record[3] == self.current_scope:
+                del self.symbol_table[-1]
+        self.current_scope -= 1    
