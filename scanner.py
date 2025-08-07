@@ -10,11 +10,17 @@ class Scanner:
         self.comment_start_line = None
         self.current_line = ''
         self.errors = []
+        # self.symbol_table = []
+        # self.symbol_table.extend(self.KEYWORDS)
 
     def is_letter(self, ch): return ch.isalpha()
     def is_digit(self, ch): return ch.isdigit()
     def is_alnum(self, ch): return ch.isalnum()
     def is_whitespace(self, ch): return ch in ' \n\r\t\v\f'
+
+    # def add_to_symbol_table(self, token):
+    #     if token not in self.symbol_table:
+    #         self.symbol_table.append(token)
 
     def get_next_token(self):
         while self.line_number < len(self.lines):
@@ -103,6 +109,7 @@ class Scanner:
                 word = line[start:self.index]
                 if word in self.KEYWORDS:
                     return ('KEYWORD', word)
+                # self.add_to_symbol_table(word)
                 return ('ID', word)
 
             # Invalid input
