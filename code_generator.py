@@ -1,6 +1,7 @@
 class CodeGen:
     def __init__(self):
         self.semantic_stack = []
+        self.return_stack = []
         self.output = []  
         self.temp_counter = 0
         self.label_counter = 0
@@ -74,3 +75,67 @@ class CodeGen:
     def void_check(self, name):
         if self.saved_type == 'void':
             print(f"[Semantic Error] Cannot declare variable '{name}' of type void")
+
+
+    def start_params(self, lookahead):
+        """marks the symbol table so that the args are recognized later.
+        It also saves a place for jumping over for non-main functions.
+        """
+        func_attr = self.SS.pop()
+        self.semantic_stack.append(self.index)  # to jump over for non-main functions
+        self.index += 1
+        self.semantic_stack.append(func_attr)
+        # mark the table before adding args
+        self.symbol_table.append('>>')
+
+    def create_record(self, lookahead):
+        """adds the function and its attributes to the symbol table"""
+        return_address = self.get_temp()
+        current_index = self.index  # where we jump to on call
+        return_value = self.get_temp()
+        self.semantic_stack.append(return_value)
+        self.semantic_stack.append(return_address)
+        func_id = self.SS[-3]
+        args_start_idx = self.symbol_table.index('>>')
+        func_args = self.symbol_table[args_start_idx + 1:]
+        self.symbol_table.pop(args_start_idx)
+        self.symbol_table \
+            .append((func_id, 'function', [return_value, func_args, return_address, current_index], self.current_scope))
+
+    # Manage returns
+    def new_return(self, lookahead):
+        """indicates new function so that every report between this and #end_return
+        sets the return value and jumps to the address set by the caller
+        """
+        self.return_stack.append('>>>')
+
+    def end_return(self, lookahead):
+            """called at the end of the function, fills the gaps created by returns"""
+            latest_func = len(self.return_stack) - self.return_stack[::-1].index('>>>') - 1
+            return_value = self.semantic_stack[-2]
+            return_address = self.semantic_stack[-1]
+            for item in self.return_stack[latest_func + 1:]:
+                self.output[item[0]] = f'(ASSIGN, {item[1]}, {return_value}, )'
+                self.output[item[0] + 1] = f'(JP, @{return_address}, , )'
+            self.return_stack = self.return_stack[:latest_func]
+
+    def finish_function(self, lookahead):
+            """in create_record we saved an instruction for now,
+            so that non-main functions are jumped over.
+            Also, we need to clean up the mess we've made in SS.
+            """
+            self.semantic_stack.pop(), self.semantic_stack.pop(), self.semantic_stack.pop()
+            # all this shit only to exclude main from being jumped over
+            for item in self.symbol_table[::-1]:
+                if item[1] == 'function':
+                    if item[0] == 'main':
+                        self.output[self.semantic_stack.pop()] = f'(ASSIGN, #0, {self.get_temp()}, )'
+                        return
+                    break
+            self.output[self.semantic_stack.pop()] = f'(JP, {self.index}, , )'
+
+    def return_anyway(self, lookahead):
+        """places a jump at the end of function. just in case it hasn't already"""
+        if self.SS[-3] != 'main':
+            return_address = self.SS[-1]
+            self.insert_code('JP', f'@{return_address}')
