@@ -601,9 +601,13 @@ class Parser:
         elif token_lexeme == 'break' and token_kind == 'KEYWORD': # break ;
             self.require_token("KEYWORD", "break")
             self.require_token("SYMBOL", ";")
+            # ACTION: #break_loop
+            self.code_gen.break_loop(self.lookahead_token)
         elif self._is_token_in_rule_predict_set("Expression"): # Expression ;
             self.attempt_parse_rule_with_recovery("Expression", self.construct_Expression)
             self.require_token("SYMBOL", ";")
+            # ACTION: #clean_up
+            self.code_gen.clean_up(self.lookahead_token)
         else:
             self.syntax_error_list.append(f"#{self.token_provider.line_number + 1} : syntax error, missing ExpressionStmt")
             self.require_token("SYMBOL", ";") 

@@ -2,6 +2,7 @@ class CodeGen:
     def __init__(self):
         self.semantic_stack = []
         self.return_stack = []
+        self.break_stack = []
         self.output = []  
         self.temp_address = 500
         self.label_counter = 0
@@ -9,6 +10,8 @@ class CodeGen:
 
         self.saved_type = None
         self.current_scope = 0  # Default scope
+
+        self.semantic_errors = []
 
         # Our real symbol table: [(name, type, address, scope)]
         self.symbol_table = []
@@ -74,10 +77,15 @@ class CodeGen:
         self.symbol_table.append((array_id, 'int*', address, self.current_scope))
 
 
-    def void_check(self, name):
-        if self.saved_type == 'void':
-            print(f"[Semantic Error] Cannot declare variable '{name}' of type void")
+    def void_check(self, var_id):
+        if self.id_type[2] == 'void':
+            self.semantic_errors.append(f'#{self.id_type[0]} : Semantic Error! Illegal type of void for \'{var_id}\'.')
 
+    def break_check(self, lookahead):
+        if len(self.break_stack) > 0 and ['>>>' in self.break_stack]:
+            return
+        self.semantic_errors.append(
+            f'#{lookahead[0]} : Semantic Error! No \'while\' or \'for\' found for \'break\'.')
 
     def start_params(self, lookahead):
         """marks the symbol table so that the args are recognized later.
@@ -155,3 +163,12 @@ class CodeGen:
             if record[3] == self.current_scope:
                 del self.symbol_table[-1]
         self.current_scope -= 1    
+
+    def clean_up(self, lookahead):
+        self.semantic_stack.pop()    
+
+    def break_loop(self, lookahead):
+        """saves i to be later filled with a jump to after the scope"""
+        self.break_check(lookahead)
+        self.break_stack.append(self.index)
+        self.index += 1    
