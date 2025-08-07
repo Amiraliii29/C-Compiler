@@ -6,6 +6,8 @@ class CodeGen:
         self.label_counter = 0
         self.index = 0
 
+        self.saved_type = None
+
     def get_temp(self):
         temp = f"T{self.temp_counter}"
         self.temp_counter += 1
@@ -34,6 +36,12 @@ class CodeGen:
 
     def get_output(self):
         return "\n".join(self.output)
+    
+    def get_id_type(self, lexeme):
+        self.saved_type = lexeme
+
+    def push_id(self, lexeme):
+        self.push(lexeme)
 
     
 

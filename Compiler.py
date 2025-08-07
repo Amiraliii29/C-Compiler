@@ -116,7 +116,7 @@
 #         return ('$', '$')
 
 from scanner import Scanner
-# from code_generator import Codegen 
+from code_generator import CodeGen 
 
 class SyntaxRecoveryActions:
     PROCEED_AS_EXPECTED = "proceed_normal"
@@ -129,10 +129,12 @@ class Parser:
     def __init__(self, token_source_object):
         self.attempt_empty_production_next = False 
         self.token_provider = token_source_object
+        self.code_gen = CodeGen()
         self.lookahead_token = None
         self.syntax_error_list = []
         self.parse_tree = []
         self.depth = 0
+
         
         self.firsts = {
             'Program': {'int', 'void', 'epsilon'},
@@ -399,7 +401,15 @@ class Parser:
     def construct_DeclarationInitial(self, use_empty_production):
         self.log_syntax_node("DeclarationInitial") 
         self.depth += 1
+
+        # ACTION: #get_id_type
+        self.code_gen.get_id_type(self.lookahead_token[1])
         self.attempt_parse_rule_with_recovery("TypeSpecifier", self.construct_TypeSpecifier)
+
+        # ACTION: #push_id
+        if self.lookahead_token[0] == "ID":
+            self.code_gen.push_id(self.lookahead_token[1])
+
         self.require_token('ID')
         self.depth -= 1
 
