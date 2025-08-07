@@ -488,8 +488,16 @@ class Parser:
         self.log_syntax_node("Params") 
         self.depth += 1
         if self.lookahead_token[1] == 'int' and self.lookahead_token[0] == 'KEYWORD':
+            # get_id_type
+            self.code_gen.get_id_type('int')
             self.require_token('KEYWORD', 'int')
+            if self.lookahead_token[0] == 'ID':
+                # push_id
+                self.code_gen.push_id(self.lookahead_token[1])
             self.require_token('ID')
+            # define_variable
+            self.code_gen.define_variable(self.lookahead_token)    
+            
             self.attempt_parse_rule_with_recovery("ParamPrime", self.construct_ParamPrime)
             self.attempt_parse_rule_with_recovery("ParamList", self.construct_ParamList)
         elif self.lookahead_token[1] == 'void' and self.lookahead_token[0] == 'KEYWORD':
