@@ -455,10 +455,21 @@ class Parser:
     def construct_FunDeclarationPrime(self, use_empty_production):
         self.log_syntax_node("FunDeclarationPrime") 
         self.depth += 1
+        # Action 
+        self.code_gen.start_params(self.lookahead_token)  
         self.require_token('SYMBOL', '(')
         self.attempt_parse_rule_with_recovery("Params", self.construct_Params)
         self.require_token('SYMBOL', ')')
+
+        self.code_gen.create_record(self.lookahead_token)    # #create_record
+        self.code_gen.new_return(self.lookahead_token)       # #new_return
+
         self.attempt_parse_rule_with_recovery("CompoundStmt", self.construct_CompoundStmt)
+
+        self.code_gen.end_return(self.lookahead_token)       # #end_return
+        self.code_gen.return_anyway(self.lookahead_token)    # #return_anyway
+        self.code_gen.finish_function(self.lookahead_token)  # #finish_function
+
         self.depth -= 1
 
     def construct_TypeSpecifier(self, use_empty_production):

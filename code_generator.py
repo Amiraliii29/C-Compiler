@@ -3,7 +3,7 @@ class CodeGen:
         self.semantic_stack = []
         self.return_stack = []
         self.output = []  
-        self.temp_counter = 0
+        self.temp_address = 500
         self.label_counter = 0
         self.index = 0
 
@@ -13,10 +13,12 @@ class CodeGen:
         # Our real symbol table: [(name, type, address, scope)]
         self.symbol_table = []
 
-    def get_temp(self):
-        temp = f"T{self.temp_counter}"
-        self.temp_counter += 1
-        return temp
+    def get_temp(self, count=1):
+        address = str(self.temp_address)
+        for _ in range(count):
+            self.insert_code('ASSIGN', '#0', str(self.temp_address))
+            self.temp_address += 4
+        return address
 
     def get_label(self):
         label = f"L{self.label_counter}"
@@ -58,7 +60,7 @@ class CodeGen:
         address = self.get_temp()
         self.insert_code('ASSIGN', '#0', address)
 
-        self.symbol_table.append((var_id, self.saved_type, address, self.current_scope))
+        self.symbol_table.append((var_id, 'int', address, self.current_scope))
     
 
     def define_array(self, lookahead=None):
@@ -69,7 +71,7 @@ class CodeGen:
         address = self.get_temp()
         self.insert_code('ASSIGN', f'#{array_size}', address)
 
-        self.symbol_table.append((array_id, f'{self.saved_type}[]', address, self.current_scope))
+        self.symbol_table.append((array_id, 'int*', address, self.current_scope))
 
 
     def void_check(self, name):
@@ -81,7 +83,7 @@ class CodeGen:
         """marks the symbol table so that the args are recognized later.
         It also saves a place for jumping over for non-main functions.
         """
-        func_attr = self.SS.pop()
+        func_attr = self.semantic_stack.pop()
         self.semantic_stack.append(self.index)  # to jump over for non-main functions
         self.index += 1
         self.semantic_stack.append(func_attr)
@@ -95,7 +97,7 @@ class CodeGen:
         return_value = self.get_temp()
         self.semantic_stack.append(return_value)
         self.semantic_stack.append(return_address)
-        func_id = self.SS[-3]
+        func_id = self.semantic_stack[-3]
         args_start_idx = self.symbol_table.index('>>')
         func_args = self.symbol_table[args_start_idx + 1:]
         self.symbol_table.pop(args_start_idx)
@@ -136,6 +138,6 @@ class CodeGen:
 
     def return_anyway(self, lookahead):
         """places a jump at the end of function. just in case it hasn't already"""
-        if self.SS[-3] != 'main':
-            return_address = self.SS[-1]
+        if self.semantic_stack[-3] != 'main':
+            return_address = self.semantic_stack[-1]
             self.insert_code('JP', f'@{return_address}')
