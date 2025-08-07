@@ -172,3 +172,18 @@ class CodeGen:
         self.break_check(lookahead)
         self.break_stack.append(self.index)
         self.index += 1    
+
+    def save(self, lookahead):
+        self.semantic_stack.append(self.index)
+        self.index += 1
+
+    def jpf_save(self, lookahead):
+        dest = self.semantic_stack.pop()
+        src = self.semantic_stack.pop()
+        self.output[dest] = f'(JPF, {src}, {self.index + 1}, )'
+        self.semantic_stack.append(self.index)
+        self.index += 1
+
+    def jump(self, lookahead):
+        dest = int(self.semantic_stack.pop())
+        self.output[dest] = f'(JP, {self.index}, , )'    

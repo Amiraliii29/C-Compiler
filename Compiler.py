@@ -620,14 +620,31 @@ class Parser:
         self.require_token("SYMBOL", "(")
         self.attempt_parse_rule_with_recovery("Expression", self.construct_Expression)
         self.require_token("SYMBOL", ")")
+
+        # ACTION: #save
+        self.code_gen.save(self.lookahead_token)
+
         self.attempt_parse_rule_with_recovery("Statement", self.construct_Statement)
         
         if self.lookahead_token[1] == 'else' and self.lookahead_token[0] == 'KEYWORD':
             self.require_token("KEYWORD", "else")
+            # ACTION: #jpf_save
+            self.code_gen.jpf_save(self.lookahead_token)
+
             self.attempt_parse_rule_with_recovery("Statement", self.construct_Statement)
+
+            # ACTION: #jump
+            self.code_gen.jump(self.lookahead_token)
         else:
             self.syntax_error_list.append(f"#{self.token_provider.line_number + 1} : syntax error, missing else")
+            # ACTION: #jpf_save
+            self.code_gen.jpf_save(self.lookahead_token)
+
             self.attempt_parse_rule_with_recovery("Statement", self.construct_Statement)
+
+            # ACTION: #jump
+            self.code_gen.jump(self.lookahead_token)
+
         self.depth -= 1
 
     def construct_IterationStmt(self, use_empty_production):
