@@ -433,11 +433,19 @@ class Parser:
         self.depth += 1
         if self.lookahead_token[1] == ';' and self.lookahead_token[0] == 'SYMBOL':
             self.require_token('SYMBOL', ';')
+            # ACTION: #define_variable
+            self.code_gen.define_variable()
         elif self.lookahead_token[1] == '[' and self.lookahead_token[0] == 'SYMBOL':
             self.require_token('SYMBOL', '[')
+            # ACTION: #push_num
+            if self.lookahead_token[0] == "NUM":
+                self.code_gen.push_num(self.lookahead_token[1])
             self.require_token('NUM')
             self.require_token('SYMBOL', ']')
             self.require_token('SYMBOL', ';')
+
+            # ACTION: #define_array
+            self.code_gen.define_array()
         else:
             self.syntax_error_list.append(f"#{self.token_provider.line_number + 1} : syntax error, missing VarDeclarationPrime")
             if not self.require_token('SYMBOL', ';'): 

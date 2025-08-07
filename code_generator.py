@@ -1,12 +1,16 @@
 class CodeGen:
     def __init__(self):
         self.semantic_stack = []
-        self.output = []  # Store code lines here if needed
+        self.output = []  
         self.temp_counter = 0
         self.label_counter = 0
         self.index = 0
 
         self.saved_type = None
+        self.current_scope = 'global'  # Default scope
+
+        # Our real symbol table: [(name, type, address, scope)]
+        self.symbol_table = []
 
     def get_temp(self):
         temp = f"T{self.temp_counter}"
@@ -38,10 +42,35 @@ class CodeGen:
         return "\n".join(self.output)
     
     def get_id_type(self, lexeme):
-        self.saved_type = lexeme
+        self.saved_type = lexeme # always int or void
 
     def push_id(self, lexeme):
         self.push(lexeme)
 
+    def push_num(self, lexeme):
+        self.push(lexeme)    
+
+    def define_variable(self, lookahead=None):
+        var_id = self.pop()
+        # self.void_check(var_id)
+
+        address = self.get_temp()
+        self.insert_code('ASSIGN', '#0', address)
+
+        self.symbol_table.append((var_id, self.saved_type, address, self.current_scope))
     
 
+    def define_array(self, lookahead=None):
+        array_size = int(self.pop())
+        array_id = self.pop()
+        # self.void_check(array_id)
+
+        address = self.get_temp()
+        self.insert_code('ASSIGN', f'#{array_size}', address)
+
+        self.symbol_table.append((array_id, f'{self.saved_type}[]', address, self.current_scope))
+
+
+    def void_check(self, name):
+        if self.saved_type == 'void':
+            print(f"[Semantic Error] Cannot declare variable '{name}' of type void")
