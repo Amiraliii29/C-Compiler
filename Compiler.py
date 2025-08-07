@@ -1,5 +1,5 @@
 # Mehrshad Dehghani  401105912
-# Amirali  Sheikhi   401106158
+# Amirali Sheikhi   401106158
 
 # class Scanner:
 #     KEYWORDS = ['if', 'else', 'void', 'int', 'while', 'break', 'return']
@@ -116,6 +116,7 @@
 #         return ('$', '$')
 
 from scanner import Scanner
+# from code_generator import Codegen 
 
 class SyntaxRecoveryActions:
     PROCEED_AS_EXPECTED = "proceed_normal"
@@ -223,7 +224,7 @@ class Parser:
             'SignedFactorPrime': {',', ']', '+', '-', '*', '==', '<', ';', ')'},
             'SignedFactorZegond': {',', ']', '+', '-', '*', '==', '<', ';', ')'},
             'Factor': {',', ']', '+', '-', '*', '==', '<', ';', ')'},
-             'VarCallPrime': {',', ']', '+', '-', '*', '==', '<', ';', ')'},
+            'VarCallPrime': {',', ']', '+', '-', '*', '==', '<', ';', ')'},
             'VarPrime': {',', ']', '+', '-', '*', '==', '<', ';', ')'},
             'FactorPrime': {',', ']', '+', '-', '*', '==', '<', ';', ')'},
             'FactorZegond': {',', ']', '+', '-', '*', '==', '<', ';', ')'},
