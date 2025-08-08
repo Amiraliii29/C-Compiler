@@ -135,6 +135,39 @@ class CodeGen:
             self.semantic_errors.append(
                 f'#{lookahead[0]} : Semantic Error! Type mismatch in operands, Got {operand_2_type} instead of {operand_1_type}.')    
 
+    def parameter_type_matching(self, lookahead, var, arg, num):
+        if arg.startswith('#'):
+            if var[1] != 'int':
+                var_type = 'array' if var[1] == 'int*' else var[1]
+                self.semantic_errors.append(
+                    f'#{lookahead[0]} : Semantic Error! Mismatch in type of argument {num} of \'{self.get_func_name(var)}\'. Expected \'{var_type}\' but got \'int\' instead.')
+        else:
+            for rec in self.symbol_table:
+                if rec[2] == arg and rec[1] != var[1]:
+                    type = 'array' if rec[1] == 'int*' else rec[1]
+                    var_type = 'array' if var[1] == 'int*' else var[1]
+                    self.semantic_errors.append(
+                        f'#{lookahead[0]} : Semantic Error! Mismatch in type of argument {num} of \'{self.get_func_name(var)}\'. Expected \'{var_type}\' but got \'{type}\' instead.')
+
+    def get_func_name(self, var):
+        for rec in self.symbol_table:
+            if rec[1] == 'function':
+                for arg in rec[2][1]:
+                    if arg[2] == var[2]:
+                        return rec[0]
+    def parameter_num_matching(self, lookahead, args, attributes):
+        func_name = ''
+        for i in self.symbol_table:
+            if i[2] == attributes:
+                func_name = i[0]
+        func_args = []
+        for i in attributes:
+            if isinstance(i, list):
+                func_args = i
+        if len(func_args) != len(args):
+            self.semantic_errors.append(
+                f'#{lookahead[0]} : Semantic Error! Mismatch in numbers of arguments of \'{func_name}\'.')
+                            
     def start_params(self, lookahead):
         """marks the symbol table so that the args are recognized later.
         It also saves a place for jumping over for non-main functions.
@@ -313,4 +346,41 @@ class CodeGen:
         result = self.get_temp()
         factor_value = self.semantic_stack.pop()
         self.insert_code('SUB', '#0', factor_value, result)
-        self.semantic_stack.append(result)        
+        self.semantic_stack.append(result)     
+
+    def implicit_output(self, lookahead):
+        if self.semantic_stack[-2] == 'output':
+            self.insert_code('PRINT', self.semantic_stack.pop())     
+
+    def call_function(self, lookahead): ## need to check
+        """Does the following:
+            1. assigns inputs to args.
+            2. sets where the func must return to.
+            3. jumps to the beginning of the function.
+            4. saves the result (if any) to a temp and pops
+               everything about the function and pushes the temp.
+        """
+        if self.semantic_stack[-1] != 'output':
+            args, attributes = [], []
+            for item in self.semantic_stack[::-1]:
+                if isinstance(item, list):
+                    attributes = item
+                    break
+                args = [item] + args
+            self.parameter_num_matching(lookahead, args, attributes)
+            # assign each arg
+            for var, arg in zip(attributes[1], args):
+                self.parameter_type_matching(lookahead, var, arg, attributes[1].index(var) + 1)
+                self.insert_code('ASSIGN', arg, var[2])
+                self.semantic_stack.pop()  # pop each arg
+            for i in range(len(args) - len(attributes[1])):
+                self.semantic_stack.pop()
+            self.semantic_stack.pop()  # pop func attributes
+            # set return address
+            self.insert_code('ASSIGN', f'#{self.index + 2}', attributes[2])
+            # jump
+            self.insert_code('JP', attributes[-1])
+            # save result to temp
+            result = self.get_temp()
+            self.insert_code('ASSIGN', attributes[0], result)
+            self.semantic_stack.append(result)          

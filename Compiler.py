@@ -933,7 +933,9 @@ class Parser:
             # This corresponds to the original: if self.current_token[1] == "(":
             self.require_token("SYMBOL", "(")
             self.attempt_parse_rule_with_recovery("Args", self.construct_Args)
+            self.code_gen.implicit_output(self.lookahead_token)
             self.require_token("SYMBOL", ")")
+            self.code_gen.call_function(self.lookahead_token)
         elif self._is_token_in_rule_predict_set("VarPrime") or \
              self._can_rule_be_empty_and_synced("VarPrime"):
 
