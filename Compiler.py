@@ -864,6 +864,7 @@ class Parser:
         else: 
             self.require_token("SYMBOL", "*")
             self.attempt_parse_rule_with_recovery("SignedFactor", self.construct_SignedFactor)
+            self.code_gen.multiply(self.lookahead_token)
             self.attempt_parse_rule_with_recovery("G", self.construct_G) 
         self.depth -= 1   
 

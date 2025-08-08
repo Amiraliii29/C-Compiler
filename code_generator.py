@@ -299,4 +299,12 @@ class CodeGen:
         address = self.get_temp()
         self.insert_code(self.operations_symbols[operator], operand_1, operand_2, address)
 
-        self.semantic_stack.append(address)      
+        self.semantic_stack.append(address)   
+
+    def multiply(self, lookahead):
+        result_address = self.get_temp()
+
+        self.insert_code('MULT', self.semantic_stack[-1], self.semantic_stack[-2], result_address)
+        self.semantic_stack.pop()
+        self.semantic_stack.pop()
+        self.semantic_stack.append(result_address)       
