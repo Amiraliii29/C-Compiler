@@ -983,6 +983,7 @@ class Parser:
             self.attempt_parse_rule_with_recovery("Expression", self.construct_Expression)
             self.require_token("SYMBOL", ")")
         elif self.lookahead_token[0] == "NUM":
+            self.code_gen.push_num(self.lookahead_token[1])
             self.require_token("NUM")
         else:
             self.syntax_error_list.append(f"#{self.token_provider.line_number + 1} : syntax error, missing FactorZegond")
