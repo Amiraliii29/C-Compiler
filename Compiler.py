@@ -704,6 +704,7 @@ class Parser:
             self.attempt_parse_rule_with_recovery("SimpleExpressionZegond", self.construct_SimpleExpressionZegond)
         elif self.lookahead_token[0] == "ID":
             self.require_token("ID")
+            self.code_gen.push_id_address(self.lookahead_token)  # Semantic action: #push_id_address
             self.attempt_parse_rule_with_recovery("B", self.construct_B)
         else:
             self.syntax_error_list.append(f"#{self.token_provider.line_number + 1} : syntax error, missing Expression")

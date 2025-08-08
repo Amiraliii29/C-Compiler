@@ -1,3 +1,6 @@
+
+
+
 class CodeGen:
     def __init__(self):
         self.semantic_stack = []
@@ -22,6 +25,22 @@ class CodeGen:
             self.insert_code('ASSIGN', '#0', str(self.temp_address))
             self.temp_address += 4
         return address
+    
+    def search_in_symbol_table(self, item, scope_num=0):
+        # Search from latest to oldest (most recent declaration first)
+        for record in reversed(self.symbol_table):
+            name, typ, address, scope = record
+            if item == name and scope <= scope_num:
+                return address  # or return record if you want full info
+        return False
+    
+    def find_address(self, item):
+        if item == 'output':
+            return item
+        for record in reversed(self.symbol_table):
+            if item == record[0]:
+                return record[2]  # Return the address
+        return None  # Or raise an error if needed
 
     def get_label(self):
         label = f"L{self.label_counter}"
@@ -76,6 +95,10 @@ class CodeGen:
 
         self.symbol_table.append((array_id, 'int*', address, self.current_scope))
 
+    def scope_check(self, lookahead):
+        if self.search_in_symbol_table(lookahead[1], self.current_scope) or lookahead[1] == 'output':
+            return
+        self.semantic_errors.append(f'#{lookahead[0]} : Semantic Error! \'{lookahead[1]}\' is not defined.')
 
     def void_check(self, var_id):
         if self.id_type[2] == 'void':
@@ -218,4 +241,8 @@ class CodeGen:
         self.index += 2     
 
     def push_index(self, lookahead):
-        self.semantic_stack.append(f'#{self.index}')     
+        self.semantic_stack.append(f'#{self.index}')   
+
+    def push_id_address(self, lookahead):
+        self.scope_check(lookahead)
+        self.semantic_stack.append(self.find_address(lookahead[1]))      
