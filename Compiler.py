@@ -970,7 +970,9 @@ class Parser:
         else: 
             self.require_token("SYMBOL", "(")
             self.attempt_parse_rule_with_recovery("Args", self.construct_Args)
+            self.code_gen.implicit_output(self.lookahead_token)
             self.require_token("SYMBOL", ")")
+            self.code_gen.call_function(self.lookahead_token)
         self.depth -= 1
 
     def construct_FactorZegond(self, use_empty_production):
