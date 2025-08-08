@@ -895,7 +895,9 @@ class Parser:
         if (self.lookahead_token[1] == '+' or self.lookahead_token[1] == '-') and \
            self.lookahead_token[0] == 'SYMBOL':
             self.require_token("SYMBOL", self.lookahead_token[1])
-            self.attempt_parse_rule_with_recovery("FactorZegond", self.construct_FactorZegond) 
+            self.attempt_parse_rule_with_recovery("FactorZegond", self.construct_FactorZegond) # TODO IS IT OK??? 
+            if self.lookahead_token[1] == '-':
+                self.code_gen.negate_factor(self.lookahead_token)
         elif self._is_token_in_rule_predict_set("FactorZegond"): 
             self.attempt_parse_rule_with_recovery("FactorZegond", self.construct_FactorZegond)
         else:
