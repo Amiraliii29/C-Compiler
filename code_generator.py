@@ -307,4 +307,10 @@ class CodeGen:
         self.insert_code('MULT', self.semantic_stack[-1], self.semantic_stack[-2], result_address)
         self.semantic_stack.pop()
         self.semantic_stack.pop()
-        self.semantic_stack.append(result_address)       
+        self.semantic_stack.append(result_address)   
+
+    def negate_factor(self, lookahead):
+        result = self.get_temp()
+        factor_value = self.semantic_stack.pop()
+        self.insert_code('SUB', '#0', factor_value, result)
+        self.semantic_stack.append(result)        

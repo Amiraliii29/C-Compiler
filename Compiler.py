@@ -872,9 +872,11 @@ class Parser:
         self.log_syntax_node("SignedFactor") 
         self.depth += 1
         if (self.lookahead_token[1] == '+' or self.lookahead_token[1] == '-') and \
-           self.lookahead_token[0] == 'SYMBOL':
+            self.lookahead_token[0] == 'SYMBOL':
             self.require_token("SYMBOL", self.lookahead_token[1]) 
             self.attempt_parse_rule_with_recovery("Factor", self.construct_Factor)
+            if self.lookahead_token[1] == '-':
+                self.code_gen.negate_factor(self.lookahead_token)
         elif self._is_token_in_rule_predict_set("Factor"): 
             self.attempt_parse_rule_with_recovery("Factor", self.construct_Factor)
         else:
