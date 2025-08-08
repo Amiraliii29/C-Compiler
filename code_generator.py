@@ -245,4 +245,18 @@ class CodeGen:
 
     def push_id_address(self, lookahead):
         self.scope_check(lookahead)
-        self.semantic_stack.append(self.find_address(lookahead[1]))      
+        self.semantic_stack.append(self.find_address(lookahead[1]))    
+
+    def assign_operation(self, lookahead):
+        self.insert_code('ASSIGN', self.semantic_stack[-1], self.semantic_stack[-2])
+        self.semantic_stack.pop()
+
+    def array_index(self, lookahead):
+        idx, array_address = self.semantic_stack.pop(), self.semantic_stack.pop()
+
+        temp, result = self.get_temp(), self.get_temp()
+        self.insert_code('MULT', '#4', idx, temp)
+        self.insert_code('ASSIGN', f'{array_address}', result)
+        self.insert_code('ADD', result, temp, result)
+
+        self.semantic_stack.append(f'@{result}')      

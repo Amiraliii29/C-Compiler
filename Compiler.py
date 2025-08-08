@@ -716,10 +716,12 @@ class Parser:
         if self.lookahead_token[1] == "=" and self.lookahead_token[0] == 'SYMBOL':
             self.require_token("SYMBOL", "=")
             self.attempt_parse_rule_with_recovery("Expression", self.construct_Expression)
+            self.code_gen.assign_operation(self.lookahead_token)  # Semantic action: #assign_operation
         elif self.lookahead_token[1] == "[" and self.lookahead_token[0] == 'SYMBOL':
             self.require_token("SYMBOL", "[")
             self.attempt_parse_rule_with_recovery("Expression", self.construct_Expression)
             self.require_token("SYMBOL", "]")
+            self.code_gen.array_index(self.lookahead_token)  # Semantic action: #array_index
             self.attempt_parse_rule_with_recovery("H", self.construct_H)
         elif self._is_token_in_rule_predict_set("SimpleExpressionPrime") or \
              self._can_rule_be_empty_and_synced("SimpleExpressionPrime"): 
