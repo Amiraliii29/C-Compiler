@@ -215,4 +215,7 @@ class CodeGen:
         """
         self.return_stack.append((self.index, self.semantic_stack[-1]))
         self.semantic_stack.pop()
-        self.index += 2      
+        self.index += 2     
+
+    def push_index(self, lookahead):
+        self.semantic_stack.append(f'#{self.index}')     

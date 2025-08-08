@@ -686,6 +686,7 @@ class Parser:
         self.depth += 1
         # ReturnStmtPrime -> Expression ; | ;
         if self.lookahead_token[1] == ';' and self.lookahead_token[0] == 'SYMBOL':
+            self.code_gen.push_index(self.lookahead_token)  # Semantic action: #push_index
             self.require_token('SYMBOL', ';')    
         elif self._is_token_in_rule_predict_set("Expression"): 
             self.attempt_parse_rule_with_recovery("Expression", self.construct_Expression)
