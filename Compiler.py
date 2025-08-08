@@ -816,8 +816,10 @@ class Parser:
             self.log_syntax_node("epsilon") 
             self.attempt_empty_production_next = False
         else: 
+            self.code_gen.push_operator(self.lookahead_token)  # Semantic action: #push_operator
             self.attempt_parse_rule_with_recovery("Addop", self.construct_Addop)
             self.attempt_parse_rule_with_recovery("Term", self.construct_Term)
+            self.code_gen.save_operation(self.lookahead_token)  # Semantic action: #save_operation
             self.attempt_parse_rule_with_recovery("D", self.construct_D) 
         self.depth -= 1
 
