@@ -958,6 +958,7 @@ class Parser:
             self.require_token("SYMBOL", "[")
             self.attempt_parse_rule_with_recovery("Expression", self.construct_Expression)
             self.require_token("SYMBOL", "]")
+            self.code_gen.array_index(self.lookahead_token)
         self.depth -= 1    
 
     def construct_FactorPrime(self, use_empty_production): 
