@@ -186,4 +186,24 @@ class CodeGen:
 
     def jump(self, lookahead):
         dest = int(self.semantic_stack.pop())
-        self.output[dest] = f'(JP, {self.index}, , )'    
+        self.output[dest] = f'(JP, {self.index}, , )'   
+
+    def label(self, lookahead):
+        self.semantic_stack.append(self.index)     
+
+    def new_break(self, lookahead):
+        """makes sure that break-stmt breaks the deepest breakable scope"""
+        self.break_stack.append('>>>')
+
+    def while_jumps(self, lookahead):
+        self.output[int(self.semantic_stack[-1])] = f'(JPF, {self.semantic_stack[-2]}, {self.index + 1}, )'
+        self.output[self.index] = f'(JP, {self.semantic_stack[-3]}, , )'
+        self.index += 1
+        self.semantic_stack.pop(), self.semantic_stack.pop(), self.semantic_stack.pop()    
+
+    def end_break(self, lookahead):
+        """fills PB[saved i] with a jump to current i and ends the scope"""
+        latest_block = len(self.break_stack) - self.break_stack[::-1].index('>>>') - 1
+        for item in self.break_stack[latest_block + 1:]:
+            self.output[item] = f'(JP, {self.index}, , )'
+        self.break_stack = self.break_stack[:latest_block]    

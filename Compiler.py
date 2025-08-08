@@ -651,10 +651,25 @@ class Parser:
         self.log_syntax_node("IterationStmt") 
         self.depth += 1
         self.require_token("KEYWORD", "while")
+        # ACTION: #label
+        self.code_gen.label(self.lookahead_token)
+
         self.require_token("SYMBOL", "(")
         self.attempt_parse_rule_with_recovery("Expression", self.construct_Expression)
         self.require_token("SYMBOL", ")")
+        # ACTION: #new_break
+        self.code_gen.new_break(self.lookahead_token)
+
+        # ACTION: #save
+        self.code_gen.save(self.lookahead_token)
+
         self.attempt_parse_rule_with_recovery("Statement", self.construct_Statement)
+        # ACTION: #while_jumps
+        self.code_gen.while_jumps(self.lookahead_token)
+
+        # ACTION: #end_break
+        self.code_gen.end_break(self.lookahead_token)
+
         self.depth -= 1
 
     def construct_ReturnStmt(self, use_empty_production):
