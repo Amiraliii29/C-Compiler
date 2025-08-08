@@ -736,6 +736,7 @@ class Parser:
         if self.lookahead_token[1] == "=" and self.lookahead_token[0] == 'SYMBOL': 
             self.require_token("SYMBOL", "=")
             self.attempt_parse_rule_with_recovery("Expression", self.construct_Expression)
+            self.code_gen.assign_operation(self.lookahead_token)  # Semantic action: #assign_operation
         elif self._is_token_in_rule_predict_set("G") or \
              ("epsilon" in self.firsts.get("G",{})) and self._is_token_in_rule_predict_set("D") or \
              ("epsilon" in self.firsts.get("G",{})) and ("epsilon" in self.firsts.get("D",{})) and self._is_token_in_rule_predict_set("C") or \
