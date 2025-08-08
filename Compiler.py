@@ -677,6 +677,8 @@ class Parser:
         self.depth += 1
         self.require_token('KEYWORD', 'return')
         self.attempt_parse_rule_with_recovery("ReturnStmtPrime", self.construct_ReturnStmtPrime)
+        self.code_gen.save_return(self.lookahead_token)  # perform semantic action
+        
         self.depth -= 1
 
     def construct_ReturnStmtPrime(self, use_empty_production):

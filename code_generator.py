@@ -206,4 +206,13 @@ class CodeGen:
         latest_block = len(self.break_stack) - self.break_stack[::-1].index('>>>') - 1
         for item in self.break_stack[latest_block + 1:]:
             self.output[item] = f'(JP, {self.index}, , )'
-        self.break_stack = self.break_stack[:latest_block]    
+        self.break_stack = self.break_stack[:latest_block]  
+
+    def save_return(self, lookahead):
+        """called by each return. Saves two instructions:
+        one for assigning the return value,
+        and one for jumping to the caller
+        """
+        self.return_stack.append((self.index, self.semantic_stack[-1]))
+        self.semantic_stack.pop()
+        self.index += 2      
