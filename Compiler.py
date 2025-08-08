@@ -240,7 +240,10 @@ class Parser:
         self.attempt_parse_rule_with_recovery('Program', self.construct_Program)
         
         self.generate_derivation_output("parse_tree.txt") 
-        self.generate_error_report("syntax_errors.txt") 
+        self.generate_error_report("syntax_errors.txt")
+        self.generate_intermediate_code("output.txt")
+        self.generate_semantic_errors("semantic_errors.txt")
+
 
     def require_token(self, expected_kind, lexeme_value=None):
         token_kind, current_lexeme = self.lookahead_token
@@ -276,6 +279,28 @@ class Parser:
                             outfile.write(issue + "\n")
             except IOError:
                 print(f"Warning: Could not write error report to {filename}")
+
+    def generate_semantic_errors(self, filename="semantic_errors.txt"): 
+            try:
+                with open(filename, "w") as outfile:
+                    if not self.code_gen.semantic_errors:
+                        outfile.write("There is no syntax error.\n") 
+                    else:
+                        for issue in self.code_gen.semantic_errors:
+                            outfile.write(issue + "\n")
+            except IOError:
+                print(f"Warning: Could not write error report to {filename}")    
+
+    def generate_intermediate_code(self, filename="output.txt"): 
+            try:
+                with open(filename, "w") as outfile:
+                    if not self.code_gen.output:
+                        outfile.write("There is no code.\n") 
+                    else:
+                        for issue in self.code_gen.output:
+                            outfile.write(issue + "\n")
+            except IOError:
+                print(f"Warning: Could not write error report to {filename}")                     
                 
     def _format_token_for_illegal_error(self , token_kind , token_lexeme):
         if token_kind in {'NUM', 'ID'}:
