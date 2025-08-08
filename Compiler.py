@@ -769,8 +769,11 @@ class Parser:
             self.log_syntax_node("epsilon") 
             self.attempt_empty_production_next = False
         else: 
+            self.code_gen.push_operator(self.lookahead_token)  # Semantic action: #push_operator
             self.attempt_parse_rule_with_recovery("Relop", self.construct_Relop)
             self.attempt_parse_rule_with_recovery("AdditiveExpression", self.construct_AdditiveExpression)
+            self.code_gen.save_operation(self.lookahead_token)  # Semantic action: #save_operation
+
         self.depth -= 1
 
     def construct_Relop(self, use_empty_production):

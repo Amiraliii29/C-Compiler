@@ -10,6 +10,7 @@ class CodeGen:
         self.temp_address = 500
         self.label_counter = 0
         self.index = 0
+        self.operations_symbols = {'+': 'ADD', '-': 'SUB', '<': 'LT', '==': 'EQ'}
 
         self.saved_type = None
         self.current_scope = 0  # Default scope
@@ -109,6 +110,30 @@ class CodeGen:
             return
         self.semantic_errors.append(
             f'#{lookahead[0]} : Semantic Error! No \'while\' or \'for\' found for \'break\'.')
+
+    def type_mismatch_check(self, lookahead, operand_1, operand_2):
+        # print(operand_1,operand_2)
+
+        if operand_2 is None or operand_1 is None:
+            return
+        operand_2_type = 'int'
+        operand_1_type = 'int'
+        if not operand_1.startswith('#'):
+            for s in self.symbol_table:
+                if s[2] == operand_1:
+                    operand_1_type = s[1]
+                    break
+        if not operand_2.startswith('#'):
+            for s in self.symbol_table:
+                if s[2] == operand_2:
+                    operand_2_type = s[1]
+                    break
+
+        if operand_2_type != operand_1_type:
+            operand_1_type = 'array' if operand_1_type == 'int*' else operand_1_type
+            operand_2_type = 'array' if operand_2_type == 'int*' else operand_2_type
+            self.semantic_errors.append(
+                f'#{lookahead[0]} : Semantic Error! Type mismatch in operands, Got {operand_2_type} instead of {operand_1_type}.')    
 
     def start_params(self, lookahead):
         """marks the symbol table so that the args are recognized later.
@@ -259,4 +284,19 @@ class CodeGen:
         self.insert_code('ASSIGN', f'{array_address}', result)
         self.insert_code('ADD', result, temp, result)
 
-        self.semantic_stack.append(f'@{result}')      
+        self.semantic_stack.append(f'@{result}')    
+
+    def push_operator(self, lookahead):
+        self.semantic_stack.append(lookahead[1])
+
+    def save_operation(self, lookahead):
+        operand_2 = self.semantic_stack.pop()
+        operator = self.semantic_stack.pop()
+        operand_1 = self.semantic_stack.pop()
+
+        self.type_mismatch_check(lookahead, operand_1, operand_2)
+
+        address = self.get_temp()
+        self.insert_code(self.operations_symbols[operator], operand_1, operand_2, address)
+
+        self.semantic_stack.append(address)      
