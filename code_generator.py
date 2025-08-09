@@ -1,14 +1,11 @@
 
-
-
 class CodeGen:
     def __init__(self):
-        self.semantic_stack = []
-        self.return_stack = []
-        self.break_stack = []
-        self.output = []  
+        self.semantic_stack = list()
+        self.return_stack = list()
+        self.break_stack = list()
+        self.output = dict()
         self.temp_address = 500
-        self.label_counter = 0
         self.index = 0
         self.operations_symbols = {'+': 'ADD', '-': 'SUB', '<': 'LT', '==': 'EQ'}
 
@@ -43,10 +40,6 @@ class CodeGen:
                 return record[2]  # Return the address
         return None  # Or raise an error if needed
 
-    def get_label(self):
-        label = f"L{self.label_counter}"
-        self.label_counter += 1
-        return label
     
     def insert_code(self, a1, a2, a3='', a4=''):
         self.output[self.index] = f'({a1}, {a2}, {a3}, {a4})'
@@ -78,7 +71,7 @@ class CodeGen:
 
     def define_variable(self, lookahead=None):
         var_id = self.pop()
-        # self.void_check(var_id)
+        self.void_check(var_id)
 
         address = self.get_temp()
         self.insert_code('ASSIGN', '#0', address)
@@ -87,12 +80,14 @@ class CodeGen:
     
 
     def define_array(self, lookahead=None):
-        array_size = int(self.pop())
+        array_size = int(self.pop()[1:])
         array_id = self.pop()
-        # self.void_check(array_id)
+        self.void_check(array_id)
 
         address = self.get_temp()
-        self.insert_code('ASSIGN', f'#{array_size}', address)
+        array_space = self.get_temp(array_size)
+
+        self.insert_code('ASSIGN', f'#{array_space}', address)
 
         self.symbol_table.append((array_id, 'int*', address, self.current_scope))
 
@@ -369,6 +364,8 @@ class CodeGen:
                 args = [item] + args
             self.parameter_num_matching(lookahead, args, attributes)
             # assign each arg
+            # print(f"DEBUG: attributes = {attributes}")
+            # print(f"DEBUG: args = {args}")
             for var, arg in zip(attributes[1], args):
                 self.parameter_type_matching(lookahead, var, arg, attributes[1].index(var) + 1)
                 self.insert_code('ASSIGN', arg, var[2])
