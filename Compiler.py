@@ -428,7 +428,7 @@ class Parser:
         self.depth += 1
 
         # ACTION: #get_id_type
-        self.code_gen.get_id_type(self.lookahead_token[1])
+        self.code_gen.get_id_type(self.lookahead_token)
         self.attempt_parse_rule_with_recovery("TypeSpecifier", self.construct_TypeSpecifier)
 
         # ACTION: #push_id
@@ -514,7 +514,7 @@ class Parser:
         self.depth += 1
         if self.lookahead_token[1] == 'int' and self.lookahead_token[0] == 'KEYWORD':
             # get_id_type
-            self.code_gen.get_id_type('int')
+            self.code_gen.get_id_type(self.lookahead_token)
             self.require_token('KEYWORD', 'int')
             if self.lookahead_token[0] == 'ID':
                 # push_id

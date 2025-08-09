@@ -9,7 +9,7 @@ class CodeGen:
         self.index = 0
         self.operations_symbols = {'+': 'ADD', '-': 'SUB', '<': 'LT', '==': 'EQ'}
 
-        self.saved_type = None
+        self.saved_type = 'void'
         self.current_scope = 0  # Default scope
 
         self.semantic_errors = []
@@ -97,8 +97,8 @@ class CodeGen:
         self.semantic_errors.append(f'#{lookahead[0]} : Semantic Error! \'{lookahead[1]}\' is not defined.')
 
     def void_check(self, var_id):
-        if self.id_type[2] == 'void':
-            self.semantic_errors.append(f'#{self.id_type[0]} : Semantic Error! Illegal type of void for \'{var_id}\'.')
+        if self.saved_type[1] == 'void':
+            self.semantic_errors.append(f'#{self.saved_type[0]} : Semantic Error! Illegal type of void for \'{var_id}\'.')
 
     def break_check(self, lookahead):
         if len(self.break_stack) > 0 and ['>>>' in self.break_stack]:
