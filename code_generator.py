@@ -15,7 +15,7 @@ class CodeGen:
         self.semantic_errors = []
 
         # Our real symbol table: [(name, type, address, scope)]
-        self.symbol_table = []
+        self.symbol_table = [] # list() TODO
 
     def get_temp(self, count=1):
         address = str(self.temp_address)
@@ -26,7 +26,7 @@ class CodeGen:
     
     def search_in_symbol_table(self, item, scope_num=0):
         # Search from latest to oldest (most recent declaration first)
-        for record in reversed(self.symbol_table):
+        for record in self.symbol_table[::-1]:
             name, typ, address, scope = record
             if item == name and scope <= scope_num:
                 return address  # or return record if you want full info
@@ -35,7 +35,7 @@ class CodeGen:
     def find_address(self, item):
         if item == 'output':
             return item
-        for record in reversed(self.symbol_table):
+        for record in self.symbol_table[::-1]:
             if item == record[0]:
                 return record[2]  # Return the address
         return None  # Or raise an error if needed
