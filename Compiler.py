@@ -183,14 +183,14 @@ class Scanner:
             if ch == '=':
                 if self.index + 1 < len(line) and line[self.index + 1] == '=':
                     self.index += 2
-                    return ('SYMBOL', '==')
+                    return ('SYMBOL', '==' , self.line_number + 1 )
                 elif self.index + 1 < len(line) and (not self.is_alnum(line[self.index + 1]) and not self.is_whitespace(line[self.index + 1])):
                     self.errors.append((self.line_number, ch + line[self.index + 1], 'Invalid input'))
                     self.index += 2
                     continue
                 else:
                     self.index += 1
-                    return ('SYMBOL', '=')
+                    return ('SYMBOL', '=' , self.line_number + 1)
 
             # Single-character symbols
             if ch in self.SYMBOLS:
@@ -201,7 +201,7 @@ class Scanner:
                             self.errors.append((self.line_number, ch + next_ch, 'Invalid input'))
                             return None, self.index + 2
                 self.index += 1        
-                return ('SYMBOL', ch)
+                return ('SYMBOL', ch , self.line_number + 1)
             # Numbers
             if self.is_digit(ch):
                 start = self.index
@@ -211,7 +211,7 @@ class Scanner:
                     self.index += 1
                     self.errors.append((self.line_number, line[start:self.index], 'Invalid number'))
                     continue
-                return ('NUM', line[start:self.index])
+                return ('NUM', line[start:self.index] , self.line_number + 1)
 
             # Identifiers and keywords
             if self.is_letter(ch):
@@ -225,16 +225,16 @@ class Scanner:
                     continue
                 word = line[start:self.index]
                 if word in self.KEYWORDS:
-                    return ('KEYWORD', word)
+                    return ('KEYWORD', word , self.line_number + 1)
                 # self.add_to_symbol_table(word)
-                return ('ID', word)
+                return ('ID', word , self.line_number + 1)
 
             # Invalid input
             self.errors.append((self.line_number + 1, ch, 'Invalid input'))
             self.index += 1
 
         # End of input
-        return ('$', '$')
+        return ('$', '$' , self.line_number + 1)
     
 class CodeGen:
     def __init__(self):
@@ -266,6 +266,20 @@ class CodeGen:
             self.insert_code('ASSIGN', '#0', str(self.temp_address))
             self.temp_address += 4
         return address
+
+        # In class CodeGen, inside code_generator.py
+
+    def get_type_by_address(self, address):
+        # Handle immediate values, which are always 'int'
+        if isinstance(address, str) and address.startswith('#'):
+            return 'int'
+        
+        # Find the variable in the symbol table by its address
+        for record in self.symbol_table:
+            # Check if the record is a variable/param and the address matches
+            if isinstance(record, tuple) and len(record) == 4 and record[2] == address:
+                return record[1]  # Return the type ('int' or 'int*')
+        return None # Return None if not found
     
     def search_in_symbol_table(self, item, scope_num=0):
         # Search from latest to oldest (most recent declaration first)
@@ -337,17 +351,19 @@ class CodeGen:
     def scope_check(self, lookahead):
         if self.search_in_symbol_table(lookahead[1], self.current_scope) or lookahead[1] == 'output':
             return
-        self.semantic_errors.append(f'#{lookahead[0]} : Semantic Error! \'{lookahead[1]}\' is not defined.')
+        self.semantic_errors.append(f'#{lookahead[2]} : Semantic Error! \'{lookahead[1]}\' is not defined.')
 
     def void_check(self, var_id):
+        # self.saved_type is now a 3-element tuple, e.g., ('KEYWORD', 'void', 5)
         if self.saved_type[1] == 'void':
-            self.semantic_errors.append(f'#{self.saved_type[0]} : Semantic Error! Illegal type of void for \'{var_id}\'.')
+            # FIX: Use the saved line number from saved_type[2]
+            self.semantic_errors.append(f'#{self.saved_type[2]} : Semantic Error! Illegal type of void for \'{var_id}\'.')
 
     def break_check(self, lookahead):
         if len(self.break_stack) > 0 and ['>>>' in self.break_stack]:
             return
         self.semantic_errors.append(
-            f'#{lookahead[0]} : Semantic Error! No \'while\' or \'for\' found for \'break\'.')
+            f'#{lookahead[2]} : Semantic Error! No \'while\' found for \'break\'.')
 
     def type_mismatch_check(self, lookahead, operand_1, operand_2):
         # print(operand_1,operand_2)
@@ -371,21 +387,21 @@ class CodeGen:
             operand_1_type = 'array' if operand_1_type == 'int*' else operand_1_type
             operand_2_type = 'array' if operand_2_type == 'int*' else operand_2_type
             self.semantic_errors.append(
-                f'#{lookahead[0]} : Semantic Error! Type mismatch in operands, Got {operand_2_type} instead of {operand_1_type}.')    
+                f'#{lookahead[2]} : Semantic Error! Type mismatch in operands, Got {operand_2_type} instead of {operand_1_type}.')    
 
     def parameter_type_matching(self, lookahead, var, arg, num):
         if arg.startswith('#'):
             if var[1] != 'int':
                 var_type = 'array' if var[1] == 'int*' else var[1]
                 self.semantic_errors.append(
-                    f'#{lookahead[0]} : Semantic Error! Mismatch in type of argument {num} of \'{self.get_func_name(var)}\'. Expected \'{var_type}\' but got \'int\' instead.')
+                    f'#{lookahead[2]} : Semantic Error! Mismatch in type of argument {num} of \'{self.get_func_name(var)}\'. Expected \'{var_type}\' but got \'int\' instead.')
         else:
             for rec in self.symbol_table:
                 if rec[2] == arg and rec[1] != var[1]:
                     type = 'array' if rec[1] == 'int*' else rec[1]
                     var_type = 'array' if var[1] == 'int*' else var[1]
                     self.semantic_errors.append(
-                        f'#{lookahead[0]} : Semantic Error! Mismatch in type of argument {num} of \'{self.get_func_name(var)}\'. Expected \'{var_type}\' but got \'{type}\' instead.')
+                        f'#{lookahead[2]} : Semantic Error! Mismatch in type of argument {num} of \'{self.get_func_name(var)}\'. Expected \'{var_type}\' but got \'{type}\' instead.')
 
     def get_func_name(self, var):
         for rec in self.symbol_table:
@@ -404,7 +420,7 @@ class CodeGen:
                 func_args = i
         if len(func_args) != len(args):
             self.semantic_errors.append(
-                f'#{lookahead[0]} : Semantic Error! Mismatch in numbers of arguments of \'{func_name}\'.')
+                f'#{lookahead[2]} : Semantic Error! Mismatch in numbers of arguments of \'{func_name}\'.')
                             
     def start_params(self, lookahead):
         """marks the symbol table so that the args are recognized later.
@@ -543,7 +559,28 @@ class CodeGen:
         self.scope_check(lookahead)
         self.semantic_stack.append(self.find_address(lookahead[1]))    
 
+
     def assign_operation(self, lookahead):
+        # --- FIX STARTS HERE ---
+        rhs_addr = self.semantic_stack[-1]
+        lhs_addr = self.semantic_stack[-2]
+
+        rhs_type = self.get_type_by_address(rhs_addr)
+        lhs_type = self.get_type_by_address(lhs_addr)
+
+        # Proceed if both types could be determined
+        if rhs_type and lhs_type and rhs_type != lhs_type:
+            # Format types for a user-friendly error message
+            # 'int*' becomes 'array'
+            expected_type = 'array' if lhs_type == 'int*' else lhs_type
+            mismatched_type = 'array' if rhs_type == 'int*' else rhs_type
+            
+            # Report the error: "Got [mismatched type] instead of [expected type]"
+            self.semantic_errors.append(
+                f'#{lookahead[2]} : Semantic Error! Type mismatch in operands, Got {expected_type} instead of {mismatched_type}.')
+        # --- FIX ENDS HERE ---
+
+        # Generate code and pop from stack regardless of the error
         self.insert_code('ASSIGN', self.semantic_stack[-1], self.semantic_stack[-2])
         self.semantic_stack.pop()
 
@@ -753,7 +790,7 @@ class Parser:
 
 
     def require_token(self, expected_kind, lexeme_value=None):
-        token_kind, current_lexeme = self.lookahead_token
+        token_kind, current_lexeme , _ = self.lookahead_token
         match_successful = False
         if token_kind == expected_kind and (lexeme_value is None or current_lexeme == lexeme_value):
             self.log_syntax_node(f"({token_kind}, {current_lexeme})") 
@@ -824,7 +861,7 @@ class Parser:
     def determine_recovery_action(self, rule_identifier_string):
         self.attempt_empty_production_next = False 
 
-        token_kind, token_lexeme = self.lookahead_token
+        token_kind, token_lexeme , _ = self.lookahead_token
         symbol_for_set_lookup = token_lexeme if token_kind not in {'ID', 'NUM', '$'} else token_kind
         
         if symbol_for_set_lookup in self.firsts.get(rule_identifier_string, set()) and \
@@ -891,12 +928,12 @@ class Parser:
             pass 
 
     def _is_token_in_rule_predict_set(self, rule_key):
-        token_kind, token_lexeme = self.lookahead_token
+        token_kind, token_lexeme , _ = self.lookahead_token
         symbol_for_set_lookup = token_lexeme if token_kind not in {'ID', 'NUM', '$'} else token_kind
         return symbol_for_set_lookup in (self.firsts.get(rule_key, set()) - {'epsilon'})
 
     def _can_rule_be_empty_and_synced(self, rule_key):
-        token_kind, token_lexeme = self.lookahead_token
+        token_kind, token_lexeme , _ = self.lookahead_token
         symbol_for_set_lookup = token_lexeme if token_kind not in {'ID', 'NUM', '$'} else token_kind
         
         is_epsilon_in_predict = "epsilon" in self.firsts.get(rule_key, set())
@@ -955,7 +992,7 @@ class Parser:
     def construct_DeclarationPrime(self, use_empty_production):
         self.log_syntax_node("DeclarationPrime") 
         self.depth += 1
-        token_kind, token_lexeme = self.lookahead_token
+        token_kind, token_lexeme , _ = self.lookahead_token
         if token_lexeme == '(' and token_kind == 'SYMBOL':
                 self.attempt_parse_rule_with_recovery("FunDeclarationPrime", self.construct_FunDeclarationPrime)
         elif (token_lexeme == ';' or token_lexeme == '[') and token_kind == 'SYMBOL':
@@ -1109,7 +1146,7 @@ class Parser:
     def construct_Statement(self, use_empty_production):
         self.log_syntax_node("Statement") 
         self.depth += 1
-        token_kind, token_lexeme = self.lookahead_token
+        token_kind, token_lexeme , _ = self.lookahead_token
         
         # Check specific keywords first
         if token_lexeme == '{': 
@@ -1133,15 +1170,17 @@ class Parser:
     def construct_ExpressionStmt(self, use_empty_production):
         self.log_syntax_node("ExpressionStmt")
         self.depth += 1
-        token_kind, token_lexeme = self.lookahead_token
+        token_kind, token_lexeme , _ = self.lookahead_token
 
         if token_lexeme == ';' and token_kind == 'SYMBOL': # Empty statement production ;
             self.require_token("SYMBOL", ";")
         elif token_lexeme == 'break' and token_kind == 'KEYWORD': # break ;
+            break_token = self.lookahead_token  # 1. Save the token for 'break'
             self.require_token("KEYWORD", "break")
             self.require_token("SYMBOL", ";")
-            # ACTION: #break_loop
-            self.code_gen.break_loop(self.lookahead_token)
+            
+            # 2. Pass the saved break_token to the action, not the new lookahead
+            self.code_gen.break_loop(break_token)
         elif self._is_token_in_rule_predict_set("Expression"): # Expression ;
             self.attempt_parse_rule_with_recovery("Expression", self.construct_Expression)
             self.require_token("SYMBOL", ";")
@@ -1470,7 +1509,7 @@ class Parser:
         self.log_syntax_node("VarCallPrime") 
         self.depth += 1
 
-        token_kind, token_lexeme = self.lookahead_token
+        token_kind, token_lexeme , _ = self.lookahead_token
 
         if token_lexeme == '(' and token_kind == 'SYMBOL':
             # Path: VarCallPrime -> ( Args )
