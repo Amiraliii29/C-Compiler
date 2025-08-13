@@ -185,6 +185,10 @@ class CodeGen:
         args_start_idx = self.symbol_table.index('>>')
         func_args = self.symbol_table[args_start_idx + 1:]
         self.symbol_table.pop(args_start_idx)
+        print("DEBUG create_record: func_id =", func_id)
+        print("DEBUG create_record: func_args =", func_args)
+        print("DEBUG create_record: symbol_table =", self.symbol_table)
+
         self.symbol_table \
             .append((func_id, 'function', [return_value, func_args, return_address, current_index], self.current_scope))
 
@@ -364,8 +368,9 @@ class CodeGen:
                 args = [item] + args
             self.parameter_num_matching(lookahead, args, attributes)
             # assign each arg
-            # print(f"DEBUG: attributes = {attributes}")
-            # print(f"DEBUG: args = {args}")
+            print("DEBUG call_function: attributes =", attributes)
+            print("DEBUG call_function: args =", args)
+
             for var, arg in zip(attributes[1], args):
                 self.parameter_type_matching(lookahead, var, arg, attributes[1].index(var) + 1)
                 self.insert_code('ASSIGN', arg, var[2])
