@@ -146,28 +146,25 @@ class CodeGen:
         output_params = [('x', 'int', 'p_addr_0', 1)] # A dummy parameter list
         self.symbol_table.append(('output', 'function', ['r_val_out', output_params, 'r_addr_out', 'builtin'], 0))
 
-    def get_temp(self, count=1):
+    def new_temp(self, count=1):
         address = str(self.temp_address)
         for _ in range(count):
-            self.insert_code('ASSIGN', '#0', str(self.temp_address))
+            self.wrtie_code('ASSIGN', '#0', str(self.temp_address))
             self.temp_address += 4
         return address
 
-        # In class CodeGen, inside code_generator.py
 
     def get_type_by_address(self, address):
         # Handle immediate values, which are always 'int'
         if isinstance(address, str) and address.startswith('#'):
             return 'int'
         
-        # Find the variable in the symbol table by its address
         for record in self.symbol_table:
-            # Check if the record is a variable/param and the address matches
             if isinstance(record, tuple) and len(record) == 4 and record[2] == address:
                 return record[1]  # Return the type ('int' or 'int*')
         return None # Return None if not found
     
-    def search_in_symbol_table(self, item, scope_num=0):
+    def find_in_sym_table(self, item, scope_num=0):
         # Search from latest to oldest (most recent declaration first)
         for record in self.symbol_table[::-1]:
             name, typ, address, scope = record
@@ -184,7 +181,7 @@ class CodeGen:
         return None  # Or raise an error if needed
 
     
-    def insert_code(self, a1, a2, a3='', a4=''):
+    def wrtie_code(self, a1, a2, a3='', a4=''):
         self.output[self.index] = f'({a1}, {a2}, {a3}, {a4})'
         self.index += 1
 
@@ -194,14 +191,14 @@ class CodeGen:
     def pop(self):
         return self.semantic_stack.pop()
 
-    def top(self):
-        return self.semantic_stack[-1] if self.semantic_stack else None
+    # def top(self):
+    #     return self.semantic_stack[-1] if self.semantic_stack else None
 
-    def emit(self, code_line):
-        self.output.append(code_line)
+    # def emit(self, code_line):
+    #     self.output.append(code_line)
 
-    def get_output(self):
-        return "\n".join(self.output)
+    # def get_output(self):
+    #     return "\n".join(self.output)
     
     def get_id_type(self, lexeme):
         self.saved_type = lexeme # always int or void
@@ -212,47 +209,44 @@ class CodeGen:
     def push_num(self, lexeme):
         self.push(f'#{lexeme}')    
 
-    def define_variable(self, lookahead=None):
+    def declare_varible(self, lookahead=None):
         var_id = self.pop()
-        self.void_check(var_id)
+        self.verify_not_void(var_id)
 
-        address = self.get_temp()
-        self.insert_code('ASSIGN', '#0', address)
+        address = self.new_temp()
+        self.wrtie_code('ASSIGN', '#0', address)
 
         self.symbol_table.append((var_id, 'int', address, self.current_scope))
     
 
-    def define_array(self, lookahead=None):
+    def declare_array(self, lookahead=None):
         array_size = int(self.pop()[1:])
         array_id = self.pop()
-        self.void_check(array_id)
+        self.verify_not_void(array_id)
 
-        address = self.get_temp()
-        array_space = self.get_temp(array_size)
+        address = self.new_temp()
+        array_space = self.new_temp(array_size)
 
-        self.insert_code('ASSIGN', f'#{array_space}', address)
+        self.wrtie_code('ASSIGN', f'#{array_space}', address)
 
         self.symbol_table.append((array_id, 'int*', address, self.current_scope))
 
-    def scope_check(self, lookahead):
-        if self.search_in_symbol_table(lookahead[1], self.current_scope) or lookahead[1] == 'output':
+    def verify_scope(self, lookahead):
+        if self.find_in_sym_table(lookahead[1], self.current_scope) or lookahead[1] == 'output':
             return
         self.semantic_errors.append(f'#{lookahead[2]} : Semantic Error! \'{lookahead[1]}\' is not defined.')
 
-    def void_check(self, var_id):
-        # self.saved_type is now a 3-element tuple, e.g., ('KEYWORD', 'void', 5)
+    def verify_not_void(self, var_id):
         if self.saved_type[1] == 'void':
-            # FIX: Use the saved line number from saved_type[2]
             self.semantic_errors.append(f'#{self.saved_type[2]} : Semantic Error! Illegal type of void for \'{var_id}\'.')
 
-    def break_check(self, lookahead):
+    def verify_break(self, lookahead):
         if len(self.break_stack) > 0 and ['>>>' in self.break_stack]:
             return
         self.semantic_errors.append(
             f'#{lookahead[2]} : Semantic Error! No \'while\' found for \'break\'.')
 
     def type_mismatch_check(self, lookahead, operand_1, operand_2):
-        # print(operand_1,operand_2)
 
         if operand_2 is None or operand_1 is None:
             return
@@ -321,9 +315,9 @@ class CodeGen:
 
     def create_record(self, lookahead):
         """adds the function and its attributes to the symbol table"""
-        return_address = self.get_temp()
+        return_address = self.new_temp()
         current_index = self.index  # where we jump to on call
-        return_value = self.get_temp()
+        return_value = self.new_temp()
         self.semantic_stack.append(return_value)
         self.semantic_stack.append(return_address)
         func_id = self.semantic_stack[-3]
@@ -360,7 +354,7 @@ class CodeGen:
             for item in self.symbol_table[::-1]:
                 if item[1] == 'function':
                     if item[0] == 'main':
-                        self.output[self.semantic_stack.pop()] = f'(ASSIGN, #0, {self.get_temp()}, )'
+                        self.output[self.semantic_stack.pop()] = f'(ASSIGN, #0, {self.new_temp()}, )'
                         return
                     break
             self.output[self.semantic_stack.pop()] = f'(JP, {self.index}, , )'
@@ -369,9 +363,9 @@ class CodeGen:
         """places a jump at the end of function. just in case it hasn't already"""
         if self.semantic_stack[-3] != 'main':
             return_address = self.semantic_stack[-1]
-            self.insert_code('JP', f'@{return_address}')
+            self.wrtie_code('JP', f'@{return_address}')
     
-    def define_array_argument(self, lookahead):
+    def declare_array_argument(self, lookahead):
         temp = self.symbol_table[-1]
         del self.symbol_table[-1]
         self.symbol_table.append((temp[0], 'int*', temp[2], temp[3]))
@@ -390,7 +384,7 @@ class CodeGen:
 
     def break_loop(self, lookahead):
         """saves i to be later filled with a jump to after the scope"""
-        self.break_check(lookahead)
+        self.verify_break(lookahead)
         self.break_stack.append(self.index)
         self.index += 1    
 
@@ -442,7 +436,7 @@ class CodeGen:
         self.semantic_stack.append(f'#{self.index}')   
 
     def push_id_address(self, lookahead):
-        self.scope_check(lookahead)
+        self.verify_scope(lookahead)
         self.semantic_stack.append(self.find_address(lookahead[1]))    
 
 
@@ -467,16 +461,16 @@ class CodeGen:
         # --- FIX ENDS HERE ---
 
         # Generate code and pop from stack regardless of the error
-        self.insert_code('ASSIGN', self.semantic_stack[-1], self.semantic_stack[-2])
+        self.wrtie_code('ASSIGN', self.semantic_stack[-1], self.semantic_stack[-2])
         self.semantic_stack.pop()
 
     def array_index(self, lookahead):
         idx, array_address = self.semantic_stack.pop(), self.semantic_stack.pop()
 
-        temp, result = self.get_temp(), self.get_temp()
-        self.insert_code('MULT', '#4', idx, temp)
-        self.insert_code('ASSIGN', f'{array_address}', result)
-        self.insert_code('ADD', result, temp, result)
+        temp, result = self.new_temp(), self.new_temp()
+        self.wrtie_code('MULT', '#4', idx, temp)
+        self.wrtie_code('ASSIGN', f'{array_address}', result)
+        self.wrtie_code('ADD', result, temp, result)
 
         self.semantic_stack.append(f'@{result}')    
 
@@ -490,28 +484,28 @@ class CodeGen:
 
         self.type_mismatch_check(lookahead, operand_1, operand_2)
 
-        address = self.get_temp()
-        self.insert_code(self.operations_symbols[operator], operand_1, operand_2, address)
+        address = self.new_temp()
+        self.wrtie_code(self.operations_symbols[operator], operand_1, operand_2, address)
 
         self.semantic_stack.append(address)   
 
     def multiply(self, lookahead):
-        result_address = self.get_temp()
+        result_address = self.new_temp()
 
-        self.insert_code('MULT', self.semantic_stack[-1], self.semantic_stack[-2], result_address)
+        self.wrtie_code('MULT', self.semantic_stack[-1], self.semantic_stack[-2], result_address)
         self.semantic_stack.pop()
         self.semantic_stack.pop()
         self.semantic_stack.append(result_address)   
 
     def negate_factor(self, lookahead):
-        result = self.get_temp()
+        result = self.new_temp()
         factor_value = self.semantic_stack.pop()
-        self.insert_code('SUB', '#0', factor_value, result)
+        self.wrtie_code('SUB', '#0', factor_value, result)
         self.semantic_stack.append(result)     
 
     def implicit_output(self, lookahead):
         if self.semantic_stack[-2] == 'output':
-            self.insert_code('PRINT', self.semantic_stack.pop())     
+            self.wrtie_code('PRINT', self.semantic_stack.pop())     
 
     def call_function(self, lookahead): ## need to check
         """Does the following:
@@ -534,18 +528,18 @@ class CodeGen:
             # print(f"DEBUG: args = {args}")
             for var, arg in zip(attributes[1], args):
                 self.parameter_type_matching(lookahead, var, arg, attributes[1].index(var) + 1)
-                self.insert_code('ASSIGN', arg, var[2])
+                self.wrtie_code('ASSIGN', arg, var[2])
                 self.semantic_stack.pop()  # pop each arg
             for i in range(len(args) - len(attributes[1])):
                 self.semantic_stack.pop()
             self.semantic_stack.pop()  # pop func attributes
             # set return address
-            self.insert_code('ASSIGN', f'#{self.index + 2}', attributes[2])
+            self.wrtie_code('ASSIGN', f'#{self.index + 2}', attributes[2])
             # jump
-            self.insert_code('JP', attributes[-1])
+            self.wrtie_code('JP', attributes[-1])
             # save result to temp
-            result = self.get_temp()
-            self.insert_code('ASSIGN', attributes[0], result)
+            result = self.new_temp()
+            self.wrtie_code('ASSIGN', attributes[0], result)
             self.semantic_stack.append(result)          
 
 class SyntaxRecoveryActions:
@@ -892,8 +886,8 @@ class Parser:
         self.depth += 1
         if self.lookahead_token[1] == ';' and self.lookahead_token[0] == 'SYMBOL':
             self.require_token('SYMBOL', ';')
-            # ACTION: #define_variable
-            self.code_gen.define_variable()
+            # ACTION: #declare_varible
+            self.code_gen.declare_varible()
         elif self.lookahead_token[1] == '[' and self.lookahead_token[0] == 'SYMBOL':
             self.require_token('SYMBOL', '[')
             # ACTION: #push_num
@@ -903,8 +897,8 @@ class Parser:
             self.require_token('SYMBOL', ']')
             self.require_token('SYMBOL', ';')
 
-            # ACTION: #define_array
-            self.code_gen.define_array()
+            # ACTION: #declare_array
+            self.code_gen.declare_array()
         else:
             self.syntax_error_list.append(f"#{self.token_provider.line_number + 1} : syntax error, missing VarDeclarationPrime")
             if not self.require_token('SYMBOL', ';'): 
@@ -954,8 +948,8 @@ class Parser:
                 # push_id
                 self.code_gen.push_id(self.lookahead_token[1])
             self.require_token('ID')
-            # define_variable
-            self.code_gen.define_variable(self.lookahead_token)    
+            # declare_varible
+            self.code_gen.declare_varible(self.lookahead_token)    
 
             self.attempt_parse_rule_with_recovery("ParamPrime", self.construct_ParamPrime)
             self.attempt_parse_rule_with_recovery("ParamList", self.construct_ParamList)
@@ -974,7 +968,7 @@ class Parser:
         else:
             self.require_token('SYMBOL', ',')
             self.attempt_parse_rule_with_recovery("Param", self.construct_Param)
-            self.code_gen.define_variable(self.lookahead_token)
+            self.code_gen.declare_varible(self.lookahead_token)
 
             self.attempt_parse_rule_with_recovery("ParamList", self.construct_ParamList)
         self.depth -= 1
@@ -993,7 +987,7 @@ class Parser:
             self.log_syntax_node("epsilon") 
             self.attempt_empty_production_next = False
         else: 
-            self.code_gen.define_array_argument(self.lookahead_token)
+            self.code_gen.declare_array_argument(self.lookahead_token)
             self.require_token("SYMBOL", "[")
             self.require_token("SYMBOL", "]") 
         self.depth -= 1
