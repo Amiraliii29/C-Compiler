@@ -13,17 +13,11 @@ class Scanner:
         self.comment_start_line = None
         self.current_line = ''
         self.errors = []
-        # self.symbol_table = []
-        # self.symbol_table.extend(self.KEYWORDS)
 
     def is_letter(self, ch): return ch.isalpha()
     def is_digit(self, ch): return ch.isdigit()
     def is_alnum(self, ch): return ch.isalnum()
     def is_whitespace(self, ch): return ch in ' \n\r\t\v\f'
-
-    # def add_to_symbol_table(self, token):
-    #     if token not in self.symbol_table:
-    #         self.symbol_table.append(token)
 
     def get_next_token(self):
         while self.line_number < len(self.lines):
@@ -189,15 +183,6 @@ class CodeGen:
 
     def pop(self):
         return self.semantic_stack.pop()
-
-    # def top(self):
-    #     return self.semantic_stack[-1] if self.semantic_stack else None
-
-    # def emit(self, code_line):
-    #     self.output.append(code_line)
-
-    # def get_output(self):
-    #     return "\n".join(self.output)
     
     def get_id_type(self, lexeme):
         self.saved_type = lexeme # always int or void
