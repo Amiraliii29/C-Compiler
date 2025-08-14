@@ -1,120 +1,6 @@
 # Mehrshad Dehghani  401105912
 # Amirali Sheikhi   401106158
 
-# class Scanner:
-#     KEYWORDS = ['if', 'else', 'void', 'int', 'while', 'break', 'return']
-#     SYMBOLS = [';', ':', ',', '[', ']', '(', ')', '{', '}', '+', '-', '*', '/', '=', '<']
-
-#     def __init__(self, lines):
-#         self.lines = lines
-#         self.line_number = 0
-#         self.index = 0
-#         self.inside_comment = False
-#         self.comment_start_line = None
-#         self.current_line = ''
-#         self.errors = []
-
-#     def is_letter(self, ch): return ch.isalpha()
-#     def is_digit(self, ch): return ch.isdigit()
-#     def is_alnum(self, ch): return ch.isalnum()
-#     def is_whitespace(self, ch): return ch in ' \n\r\t\v\f'
-
-#     def get_next_token(self):
-#         while self.line_number < len(self.lines):
-#             line = self.lines[self.line_number]
-#             if self.index >= len(line):
-#                 self.line_number += 1
-#                 self.index = 0
-#                 continue
-
-#             ch = line[self.index]
-
-#             # Skip whitespace
-#             if self.is_whitespace(ch):
-#                 self.index += 1
-#                 continue
-
-#             # Comment start
-#             if ch == '/' and self.index + 1 < len(line) and line[self.index + 1] == '*':
-#                 self.inside_comment = True
-#                 self.comment_start_line = self.line_number + 1
-#                 self.index += 2
-#                 while self.line_number < len(self.lines):
-#                     line = self.lines[self.line_number]
-#                     while self.index < len(line):
-#                         if line[self.index] == '*' and self.index + 1 < len(line) and line[self.index + 1] == '/':
-#                             self.inside_comment = False
-#                             self.index += 2
-#                             break
-#                         self.index += 1
-#                     if not self.inside_comment:
-#                         break
-#                     self.line_number += 1
-#                     self.index = 0
-#                 continue
-
-#             # Unmatched comment end
-#             if ch == '*' and self.index + 1 < len(line) and line[self.index + 1] == '/':
-#                 self.errors.append((self.line_number + 1, '*/', 'Unmatched comment'))
-#                 self.index += 2
-#                 continue
-
-#             # == or =
-#             if ch == '=':
-#                 if self.index + 1 < len(line) and line[self.index + 1] == '=':
-#                     self.index += 2
-#                     return ('SYMBOL', '==')
-#                 elif self.index + 1 < len(line) and (not self.is_alnum(line[self.index + 1]) and not self.is_whitespace(line[self.index + 1])):
-#                     self.errors.append((self.line_number, ch + line[self.index + 1], 'Invalid input'))
-#                     self.index += 2
-#                     continue
-#                 else:
-#                     self.index += 1
-#                     return ('SYMBOL', '=')
-
-#             # Single-character symbols
-#             if ch in self.SYMBOLS:
-#                 if self.index + 1 < len(line):
-#                     next_ch = line[self.index + 1]
-#                     if ch == "*" or ch == "/":
-#                         if not self.is_whitespace(next_ch) and next_ch not in self.SYMBOLS and not self.is_letter(next_ch) and not self.is_digit(next_ch) and next_ch != '=':
-#                             self.errors.append((self.line_number, ch + next_ch, 'Invalid input'))
-#                             return None, self.index + 2
-#                 self.index += 1        
-#                 return ('SYMBOL', ch)
-#             # Numbers
-#             if self.is_digit(ch):
-#                 start = self.index
-#                 while self.index < len(line) and self.is_digit(line[self.index]):
-#                     self.index += 1
-#                 if self.index < len(line) and (self.is_letter(line[self.index]) or (not self.is_whitespace(line[self.index]) and line[self.index] not in self.SYMBOLS + ["="] )):
-#                     self.index += 1
-#                     self.errors.append((self.line_number, line[start:self.index], 'Invalid number'))
-#                     continue
-#                 return ('NUM', line[start:self.index])
-
-#             # Identifiers and keywords
-#             if self.is_letter(ch):
-#                 start = self.index
-#                 while self.index < len(line) and self.is_alnum(line[self.index]):
-#                     self.index += 1
-#                 if self.index < len(line) and not self.is_whitespace(line[self.index]) and line[self.index] not in self.SYMBOLS + ['=']:
-#                     invalid_start = start
-#                     self.index += 1
-#                     self.errors.append((self.line_number, line[invalid_start:self.index], 'Invalid input'))
-#                     continue
-#                 word = line[start:self.index]
-#                 if word in self.KEYWORDS:
-#                     return ('KEYWORD', word)
-#                 return ('ID', word)
-
-#             # Invalid input
-#             self.errors.append((self.line_number + 1, ch, 'Invalid input'))
-#             self.index += 1
-
-#         # End of input
-#         return ('$', '$')
-
 class Scanner:
     KEYWORDS = ['if', 'else', 'void', 'int', 'while', 'break', 'return']
     SYMBOLS = [';', ':', ',', '[', ']', '(', ')', '{', '}', '+', '-', '*', '/', '=', '<']
@@ -835,12 +721,10 @@ class Parser:
             except IOError:
                 print(f"Warning: Could not write error report to {filename}")    
 
-    # In class Parser
-
+    
     def generate_intermediate_code(self, filename="output.txt"):
             try:
                 with open(filename, "w") as outfile:
-                    # --- FIX STARTS HERE ---
                     code_listing = self.code_gen.output
                     if not code_listing:
                         outfile.write("The output code has not been generated.\n")
@@ -849,7 +733,6 @@ class Parser:
                         for line_num in sorted(code_listing.keys()):
                             instruction = code_listing[line_num]
                             outfile.write(f"{line_num}\t{instruction}\n")
-                    # --- FIX ENDS HERE ---
             except IOError:
                 print(f"Warning: Could not write error report to {filename}")                    
                 
@@ -1091,7 +974,6 @@ class Parser:
         else:
             self.require_token('SYMBOL', ',')
             self.attempt_parse_rule_with_recovery("Param", self.construct_Param)
-            # define_variable (after Param)
             self.code_gen.define_variable(self.lookahead_token)
 
             self.attempt_parse_rule_with_recovery("ParamList", self.construct_ParamList)
@@ -1114,7 +996,6 @@ class Parser:
             self.code_gen.define_array_argument(self.lookahead_token)
             self.require_token("SYMBOL", "[")
             self.require_token("SYMBOL", "]") 
-            # self.code_gen.define_array_argument(self.lookahead_token)
         self.depth -= 1
 
     def construct_CompoundStmt(self, use_empty_production):
@@ -1157,7 +1038,6 @@ class Parser:
             self.attempt_parse_rule_with_recovery("IterationStmt", self.construct_IterationStmt)
         elif token_lexeme == 'return': 
             self.attempt_parse_rule_with_recovery("ReturnStmt", self.construct_ReturnStmt)
-        # Check if it can be an ExpressionStmt (which includes Expression, break;, 😉
         elif self._is_token_in_rule_predict_set("ExpressionStmt") or \
              (token_lexeme == ';' and token_kind == 'SYMBOL') or \
              (token_lexeme == 'break' and token_kind == 'KEYWORD'):
@@ -1262,7 +1142,6 @@ class Parser:
     def construct_ReturnStmtPrime(self, use_empty_production):
         self.log_syntax_node("ReturnStmtPrime") 
         self.depth += 1
-        # ReturnStmtPrime -> Expression ; | ;
         if self.lookahead_token[1] == ';' and self.lookahead_token[0] == 'SYMBOL':
             self.code_gen.push_index(self.lookahead_token)  # Semantic action: #push_index
             self.require_token('SYMBOL', ';')    
@@ -1277,15 +1156,11 @@ class Parser:
     def construct_Expression(self, use_empty_production):
         self.log_syntax_node("Expression") 
         self.depth += 1
-        # Expression -> SimpleExpressionZegond | ID B 
         if self._is_token_in_rule_predict_set("SimpleExpressionZegond"):
             self.attempt_parse_rule_with_recovery("SimpleExpressionZegond", self.construct_SimpleExpressionZegond)
         elif self.lookahead_token[0] == "ID":
-            # --- FIX STARTS HERE ---
-            id_token = self.lookahead_token  # 1. Save the current ID token
-            self.require_token("ID")         # 2. Consume it (advances lookahead)
-            self.code_gen.push_id_address(id_token) # 3. Call the action with the SAVED token
-            # --- FIX ENDS HERE ---
+            self.code_gen.push_id_address(self.lookahead_token)
+            self.require_token("ID")        
             self.attempt_parse_rule_with_recovery("B", self.construct_B)
         else:
             self.syntax_error_list.append(f"#{self.token_provider.line_number + 1} : syntax error, missing Expression")
@@ -1512,8 +1387,6 @@ class Parser:
         token_kind, token_lexeme , _ = self.lookahead_token
 
         if token_lexeme == '(' and token_kind == 'SYMBOL':
-            # Path: VarCallPrime -> ( Args )
-            # This corresponds to the original: if self.current_token[1] == "(":
             self.require_token("SYMBOL", "(")
             self.attempt_parse_rule_with_recovery("Args", self.construct_Args)
             self.code_gen.implicit_output(self.lookahead_token)
