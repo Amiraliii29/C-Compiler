@@ -137,7 +137,6 @@ class CodeGen:
 
         self.semantic_errors = []
 
-        # Our real symbol table: [(name, type, address, scope)]
         self.symbol_table = [] 
 
         # Pre-populate the symbol table with the built-in 'output' function.
@@ -177,8 +176,8 @@ class CodeGen:
             return item
         for record in self.symbol_table[::-1]:
             if item == record[0]:
-                return record[2]  # Return the address
-        return None  # Or raise an error if needed
+                return record[2]  
+        return None  
 
     
     def wrtie_code(self, a1, a2, a3='', a4=''):
@@ -246,50 +245,49 @@ class CodeGen:
         self.semantic_errors.append(
             f'#{lookahead[2]} : Semantic Error! No \'while\' found for \'break\'.')
 
-    def type_mismatch_check(self, lookahead, operand_1, operand_2):
-
-        if operand_2 is None or operand_1 is None:
+    def check_type_mismatch(self, lookahead, l_operand, r_operand):
+        if r_operand is None or l_operand is None:
             return
-        operand_2_type = 'int'
-        operand_1_type = 'int'
-        if not operand_1.startswith('#'):
+        r_operand_type = 'int'
+        l_operand_type = 'int'
+        if not l_operand.startswith('#'):
             for s in self.symbol_table:
-                if s[2] == operand_1:
-                    operand_1_type = s[1]
+                if s[2] == l_operand:
+                    l_operand_type = s[1]
                     break
-        if not operand_2.startswith('#'):
+        if not r_operand.startswith('#'):
             for s in self.symbol_table:
-                if s[2] == operand_2:
-                    operand_2_type = s[1]
+                if s[2] == r_operand:
+                    r_operand_type = s[1]
                     break
 
-        if operand_2_type != operand_1_type:
-            operand_1_type = 'array' if operand_1_type == 'int*' else operand_1_type
-            operand_2_type = 'array' if operand_2_type == 'int*' else operand_2_type
+        if r_operand_type != l_operand_type:
+            l_operand_type = 'array' if l_operand_type == 'int*' else l_operand_type
+            r_operand_type = 'array' if r_operand_type == 'int*' else r_operand_type
             self.semantic_errors.append(
-                f'#{lookahead[2]} : Semantic Error! Type mismatch in operands, Got {operand_2_type} instead of {operand_1_type}.')    
+                f'#{lookahead[2]} : Semantic Error! Type mismatch in operands, Got {r_operand_type} instead of {l_operand_type}.')    
 
-    def parameter_type_matching(self, lookahead, var, arg, num):
+    def check_parameter_type(self, lookahead, var, arg, num):
         if arg.startswith('#'):
             if var[1] != 'int':
                 var_type = 'array' if var[1] == 'int*' else var[1]
                 self.semantic_errors.append(
-                    f'#{lookahead[2]} : Semantic Error! Mismatch in type of argument {num} of \'{self.get_func_name(var)}\'. Expected \'{var_type}\' but got \'int\' instead.')
+                    f'#{lookahead[2]} : Semantic Error! Mismatch in type of argument {num} of \'{self.extract_function_name(var)}\'. Expected \'{var_type}\' but got \'int\' instead.')
         else:
             for rec in self.symbol_table:
                 if rec[2] == arg and rec[1] != var[1]:
                     type = 'array' if rec[1] == 'int*' else rec[1]
                     var_type = 'array' if var[1] == 'int*' else var[1]
                     self.semantic_errors.append(
-                        f'#{lookahead[2]} : Semantic Error! Mismatch in type of argument {num} of \'{self.get_func_name(var)}\'. Expected \'{var_type}\' but got \'{type}\' instead.')
+                        f'#{lookahead[2]} : Semantic Error! Mismatch in type of argument {num} of \'{self.extract_function_name(var)}\'. Expected \'{var_type}\' but got \'{type}\' instead.')
 
-    def get_func_name(self, var):
+    def extract_function_name(self, var):
         for rec in self.symbol_table:
             if rec[1] == 'function':
                 for arg in rec[2][1]:
                     if arg[2] == var[2]:
                         return rec[0]
-    def parameter_num_matching(self, lookahead, args, attributes):
+    def check_parameter_num(self, lookahead, args, attributes):
         func_name = ''
         for i in self.symbol_table:
             if i[2] == attributes:
@@ -303,20 +301,16 @@ class CodeGen:
                 f'#{lookahead[2]} : Semantic Error! Mismatch in numbers of arguments of \'{func_name}\'.')
                             
     def start_params(self, lookahead):
-        """marks the symbol table so that the args are recognized later.
-        It also saves a place for jumping over for non-main functions.
-        """
         func_attr = self.semantic_stack.pop()
-        self.semantic_stack.append(self.index)  # to jump over for non-main functions
+        self.semantic_stack.append(self.index) 
         self.index += 1
         self.semantic_stack.append(func_attr)
         # mark the table before adding args
         self.symbol_table.append('>>')
 
-    def create_record(self, lookahead):
-        """adds the function and its attributes to the symbol table"""
+    def add_record(self, lookahead):
         return_address = self.new_temp()
-        current_index = self.index  # where we jump to on call
+        current_index = self.index 
         return_value = self.new_temp()
         self.semantic_stack.append(return_value)
         self.semantic_stack.append(return_address)
@@ -327,15 +321,10 @@ class CodeGen:
         self.symbol_table \
             .append((func_id, 'function', [return_value, func_args, return_address, current_index], self.current_scope))
 
-    # Manage returns
     def new_return(self, lookahead):
-        """indicates new function so that every report between this and #end_return
-        sets the return value and jumps to the address set by the caller
-        """
         self.return_stack.append('>>>')
 
     def end_return(self, lookahead):
-            """called at the end of the function, fills the gaps created by returns"""
             latest_func = len(self.return_stack) - self.return_stack[::-1].index('>>>') - 1
             return_value = self.semantic_stack[-2]
             return_address = self.semantic_stack[-1]
@@ -344,13 +333,8 @@ class CodeGen:
                 self.output[item[0] + 1] = f'(JP, @{return_address}, , )'
             self.return_stack = self.return_stack[:latest_func]
 
-    def finish_function(self, lookahead):
-            """in create_record we saved an instruction for now,
-            so that non-main functions are jumped over.
-            Also, we need to clean up the mess we've made in SS.
-            """
+    def function_end(self, lookahead):
             self.semantic_stack.pop(), self.semantic_stack.pop(), self.semantic_stack.pop()
-            # all this shit only to exclude main from being jumped over
             for item in self.symbol_table[::-1]:
                 if item[1] == 'function':
                     if item[0] == 'main':
@@ -360,20 +344,19 @@ class CodeGen:
             self.output[self.semantic_stack.pop()] = f'(JP, {self.index}, , )'
 
     def return_anyway(self, lookahead):
-        """places a jump at the end of function. just in case it hasn't already"""
         if self.semantic_stack[-3] != 'main':
             return_address = self.semantic_stack[-1]
             self.wrtie_code('JP', f'@{return_address}')
     
-    def declare_array_argument(self, lookahead):
+    def declare_array_arg(self, lookahead):
         temp = self.symbol_table[-1]
         del self.symbol_table[-1]
         self.symbol_table.append((temp[0], 'int*', temp[2], temp[3]))
 
-    def push_scope(self, lookahead):
+    def start_scope(self, lookahead):
         self.current_scope += 1
 
-    def pop_scope(self, lookahead):
+    def end_scope(self, lookahead):
         for record in self.symbol_table[::-1]:
             if record[3] == self.current_scope:
                 del self.symbol_table[-1]
@@ -382,8 +365,7 @@ class CodeGen:
     def clean_up(self, lookahead):
         self.semantic_stack.pop()    
 
-    def break_loop(self, lookahead):
-        """saves i to be later filled with a jump to after the scope"""
+    def end_loop(self, lookahead):
         self.verify_break(lookahead)
         self.break_stack.append(self.index)
         self.index += 1    
@@ -407,7 +389,6 @@ class CodeGen:
         self.semantic_stack.append(self.index)     
 
     def new_break(self, lookahead):
-        """makes sure that break-stmt breaks the deepest breakable scope"""
         self.break_stack.append('>>>')
 
     def while_jumps(self, lookahead):
@@ -417,17 +398,12 @@ class CodeGen:
         self.semantic_stack.pop(), self.semantic_stack.pop(), self.semantic_stack.pop()    
 
     def end_break(self, lookahead):
-        """fills PB[saved i] with a jump to current i and ends the scope"""
         latest_block = len(self.break_stack) - self.break_stack[::-1].index('>>>') - 1
         for item in self.break_stack[latest_block + 1:]:
             self.output[item] = f'(JP, {self.index}, , )'
         self.break_stack = self.break_stack[:latest_block]  
 
     def save_return(self, lookahead):
-        """called by each return. Saves two instructions:
-        one for assigning the return value,
-        and one for jumping to the caller
-        """
         self.return_stack.append((self.index, self.semantic_stack[-1]))
         self.semantic_stack.pop()
         self.index += 2     
@@ -441,24 +417,19 @@ class CodeGen:
 
 
     def assign_operation(self, lookahead):
-        # --- FIX STARTS HERE ---
         rhs_addr = self.semantic_stack[-1]
         lhs_addr = self.semantic_stack[-2]
 
         rhs_type = self.get_type_by_address(rhs_addr)
         lhs_type = self.get_type_by_address(lhs_addr)
 
-        # Proceed if both types could be determined
         if rhs_type and lhs_type and rhs_type != lhs_type:
-            # Format types for a user-friendly error message
-            # 'int*' becomes 'array'
             expected_type = 'array' if lhs_type == 'int*' else lhs_type
             mismatched_type = 'array' if rhs_type == 'int*' else rhs_type
             
             # Report the error: "Got [mismatched type] instead of [expected type]"
             self.semantic_errors.append(
                 f'#{lookahead[2]} : Semantic Error! Type mismatch in operands, Got {expected_type} instead of {mismatched_type}.')
-        # --- FIX ENDS HERE ---
 
         # Generate code and pop from stack regardless of the error
         self.wrtie_code('ASSIGN', self.semantic_stack[-1], self.semantic_stack[-2])
@@ -478,14 +449,14 @@ class CodeGen:
         self.semantic_stack.append(lookahead[1])
 
     def save_operation(self, lookahead):
-        operand_2 = self.semantic_stack.pop()
+        r_operand = self.semantic_stack.pop()
         operator = self.semantic_stack.pop()
-        operand_1 = self.semantic_stack.pop()
+        l_operand = self.semantic_stack.pop()
 
-        self.type_mismatch_check(lookahead, operand_1, operand_2)
+        self.check_type_mismatch(lookahead, l_operand, r_operand)
 
         address = self.new_temp()
-        self.wrtie_code(self.operations_symbols[operator], operand_1, operand_2, address)
+        self.wrtie_code(self.operations_symbols[operator], l_operand, r_operand, address)
 
         self.semantic_stack.append(address)   
 
@@ -503,18 +474,11 @@ class CodeGen:
         self.wrtie_code('SUB', '#0', factor_value, result)
         self.semantic_stack.append(result)     
 
-    def implicit_output(self, lookahead):
+    def output_fuction(self, lookahead):
         if self.semantic_stack[-2] == 'output':
             self.wrtie_code('PRINT', self.semantic_stack.pop())     
 
-    def call_function(self, lookahead): ## need to check
-        """Does the following:
-            1. assigns inputs to args.
-            2. sets where the func must return to.
-            3. jumps to the beginning of the function.
-            4. saves the result (if any) to a temp and pops
-               everything about the function and pushes the temp.
-        """
+    def call_function(self, lookahead): 
         if self.semantic_stack[-1] != 'output':
             args, attributes = [], []
             for item in self.semantic_stack[::-1]:
@@ -522,17 +486,15 @@ class CodeGen:
                     attributes = item
                     break
                 args = [item] + args
-            self.parameter_num_matching(lookahead, args, attributes)
-            # assign each arg
-            # print(f"DEBUG: attributes = {attributes}")
-            # print(f"DEBUG: args = {args}")
+            self.check_parameter_num(lookahead, args, attributes)
+            
             for var, arg in zip(attributes[1], args):
-                self.parameter_type_matching(lookahead, var, arg, attributes[1].index(var) + 1)
+                self.check_parameter_type(lookahead, var, arg, attributes[1].index(var) + 1)
                 self.wrtie_code('ASSIGN', arg, var[2])
-                self.semantic_stack.pop()  # pop each arg
+                self.semantic_stack.pop()  
             for i in range(len(args) - len(attributes[1])):
                 self.semantic_stack.pop()
-            self.semantic_stack.pop()  # pop func attributes
+            self.semantic_stack.pop()  
             # set return address
             self.wrtie_code('ASSIGN', f'#{self.index + 2}', attributes[2])
             # jump
@@ -914,14 +876,14 @@ class Parser:
         self.attempt_parse_rule_with_recovery("Params", self.construct_Params)
         self.require_token('SYMBOL', ')')
 
-        self.code_gen.create_record(self.lookahead_token)    # #create_record
+        self.code_gen.add_record(self.lookahead_token)    # #add_record
         self.code_gen.new_return(self.lookahead_token)       # #new_return
 
         self.attempt_parse_rule_with_recovery("CompoundStmt", self.construct_CompoundStmt)
 
         self.code_gen.end_return(self.lookahead_token)       # #end_return
         self.code_gen.return_anyway(self.lookahead_token)    # #return_anyway
-        self.code_gen.finish_function(self.lookahead_token)  # #finish_function
+        self.code_gen.function_end(self.lookahead_token)  # #function_end
 
         self.depth -= 1
 
@@ -987,7 +949,7 @@ class Parser:
             self.log_syntax_node("epsilon") 
             self.attempt_empty_production_next = False
         else: 
-            self.code_gen.declare_array_argument(self.lookahead_token)
+            self.code_gen.declare_array_arg(self.lookahead_token)
             self.require_token("SYMBOL", "[")
             self.require_token("SYMBOL", "]") 
         self.depth -= 1
@@ -996,14 +958,14 @@ class Parser:
         self.log_syntax_node("CompoundStmt") 
         self.depth += 1
         # Push a new scope
-        self.code_gen.push_scope(self.lookahead_token)
+        self.code_gen.start_scope(self.lookahead_token)
         self.require_token('SYMBOL', '{')
         self.attempt_parse_rule_with_recovery("DeclarationList", self.construct_DeclarationList)
         self.attempt_parse_rule_with_recovery("StatementList", self.construct_StatementList)
         self.require_token('SYMBOL', '}')
 
         # Pop the current scope
-        self.code_gen.pop_scope(self.lookahead_token)
+        self.code_gen.end_scope(self.lookahead_token)
 
         self.depth -= 1
 
@@ -1054,7 +1016,7 @@ class Parser:
             self.require_token("SYMBOL", ";")
             
             # 2. Pass the saved break_token to the action, not the new lookahead
-            self.code_gen.break_loop(break_token)
+            self.code_gen.end_loop(break_token)
         elif self._is_token_in_rule_predict_set("Expression"): # Expression ;
             self.attempt_parse_rule_with_recovery("Expression", self.construct_Expression)
             self.require_token("SYMBOL", ";")
@@ -1383,7 +1345,7 @@ class Parser:
         if token_lexeme == '(' and token_kind == 'SYMBOL':
             self.require_token("SYMBOL", "(")
             self.attempt_parse_rule_with_recovery("Args", self.construct_Args)
-            self.code_gen.implicit_output(self.lookahead_token)
+            self.code_gen.output_fuction(self.lookahead_token)
             self.require_token("SYMBOL", ")")
             self.code_gen.call_function(self.lookahead_token)
         elif self._is_token_in_rule_predict_set("VarPrime") or \
@@ -1420,7 +1382,7 @@ class Parser:
         else: 
             self.require_token("SYMBOL", "(")
             self.attempt_parse_rule_with_recovery("Args", self.construct_Args)
-            self.code_gen.implicit_output(self.lookahead_token)
+            self.code_gen.output_fuction(self.lookahead_token)
             self.require_token("SYMBOL", ")")
             self.code_gen.call_function(self.lookahead_token)
         self.depth -= 1
